@@ -1,0 +1,7 @@
+{
+  "framework": "vite",
+  "installCommand": "cd NER-Website && npm ci",
+  "buildCommand": "cd NER-Website && npm run build",
+  "outputDirectory": "NER-Website/dist",
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+}
