@@ -71,7 +71,7 @@ async function loadAccount(): Promise<{ role: Role } | { error: string }> {
   const [{ data: dbRole }, { data: district }, { data: prof }, { data: ownRole }] = await Promise.all([
     supabase.rpc('my_role'),
     supabase.rpc('my_district_name'),
-    supabase.from('profiles').select('full_name, officer_id, phone, organization, department, region, is_active')
+    supabase.from('profiles').select('full_name, officer_id, phone, organization, region, is_active')
       .eq('id', user.id).maybeSingle(),
     supabase.from('user_roles').select('role, is_active').eq('user_id', user.id).maybeSingle(),
   ]);
@@ -103,8 +103,7 @@ async function loadAccount(): Promise<{ role: Role } | { error: string }> {
     profileName: name,
     profileInitials: initials(name),
     officerId: prof?.officer_id ?? '',
-    // Department is display-only, so the sign-up metadata is an acceptable fallback here.
-    department: prof?.department ?? prof?.organization ?? (user.user_metadata?.department as string | undefined) ?? '',
+    department: prof?.organization ?? '',
     region: (district as string | null) ?? prof?.region ?? 'North Eastern Region',
     district: (district as string | null) ?? undefined,
     phone: prof?.phone ?? '',
@@ -157,7 +156,7 @@ export type SignUpResult = { ok: true; needsConfirmation: boolean } | { ok: fals
  * profile and role rows; district and control-room roles start inactive until an administrator approves them.
  */
 export async function signUp(input: {
-  email: string; password: string; fullName: string; role: Role; state?: string; district?: string; department?: string;
+  email: string; password: string; fullName: string; role: Role; state?: string; district?: string;
 }): Promise<SignUpResult> {
   if (!supabase) return { ok: false, message: 'The sign-in service is not configured for this build.' };
 
@@ -172,7 +171,6 @@ export async function signUp(input: {
           requested_role: REQUESTED_ROLES[input.role],
           state: input.state ?? '',
           district: input.district ?? '',
-          department: input.department?.trim() ?? '',
         },
       },
     });

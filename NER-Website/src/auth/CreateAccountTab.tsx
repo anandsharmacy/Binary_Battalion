@@ -39,7 +39,6 @@ export default function CreateAccountTab() {
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [department, setDepartment] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +91,6 @@ export default function CreateAccountTab() {
           role: selectedRole === "field-officer" ? "field" : selectedRole === "district-officer" ? "district" : "control",
           state: isOfficer ? selectedState : undefined,
           district: isOfficer ? selectedDistrict : undefined,
-          department,
         });
         setIsSubmitting(false);
         if (!result.ok) {
@@ -123,18 +121,6 @@ export default function CreateAccountTab() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="officer@gov.in or employee ID"
-          className="glass-field accent-green"
-        />
-      </Field>
-
-      {/* Password */}
-      <Field label="Department" htmlFor="department">
-        <input
-          id="department"
-          type="text"
-          value={department}
-          onChange={(e) => setDepartment(e.target.value)}
-          placeholder="Department or division"
           className="glass-field accent-green"
         />
       </Field>
