@@ -42,8 +42,6 @@ const dictionaries: Partial<Record<LanguageCode, Record<string, string>>> = {
     'Route Status': 'मार्ग की स्थिति',
     'Command Center': 'कमांड सेंटर',
     'Main Menu': 'मुख्य मेनू',
-    'Role set by your account': 'भूमिका आपके खाते से निर्धारित है',
-    'Viewing As': 'इस रूप में देखें',
     'Help & Support': 'सहायता एवं समर्थन',
     Logout: 'लॉगआउट',
     'NER PLATFORM': 'एनईआर प्लेटफॉर्म',

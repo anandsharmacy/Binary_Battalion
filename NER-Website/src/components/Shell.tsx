@@ -81,12 +81,6 @@ interface ShellProps {
   children: React.ReactNode;
 }
 
-const ROLE_SWITCHER: { key: Role; label: string; short: string }[] = [
-  { key: 'field', label: 'Field Officer', short: 'FO' },
-  { key: 'district', label: 'District Officer', short: 'DO' },
-  { key: 'control', label: 'Control Officer', short: 'CO' },
-];
-
 export default function Shell({ role, page, setPage, onSwitchRole, onLogout, sessionSource = 'supabase', children }: ShellProps) {
   const { t } = useLanguage();
   const baseMeta = ROLE_META[role] ?? ROLE_META.district;
@@ -264,33 +258,6 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
 
         {/* Bottom */}
         <div className="px-3 py-3 border-t flex-shrink-0" style={{ borderColor: '#0F2538' }}>
-          {/* Role switcher — demo sessions only; a real session's role comes from the database (AUTH-003) */}
-          {!offlineDemo ? (
-            <div className="mb-2 px-1 text-xs" style={{ color: '#4A6A82' }}>
-              {t('Role set by your account')}
-            </div>
-          ) : (
-          <div className="mb-2">
-            <div className="text-xs uppercase tracking-widest mb-1.5 px-1" style={{ color: '#4A6A82', fontSize: 10 }}>
-              {t('Viewing As')}
-            </div>
-            <div className="grid grid-cols-3 gap-1">
-              {ROLE_SWITCHER.map(r => {
-                const active = role === r.key;
-                return (
-                  <button key={r.key} onClick={() => onSwitchRole(r.key)} title={r.label}
-                    className="py-1.5 rounded text-xs font-semibold transition-all"
-                    style={{
-                      background: active ? '#D7A73A' : '#122840',
-                      color: active ? '#17212B' : '#8AAFC8',
-                    }}>
-                    {r.short}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          )}
           {[
             { label: 'Help & Support', icon: '?' },
             { label: 'Logout',         icon: '→' },
