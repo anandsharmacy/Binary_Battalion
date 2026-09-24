@@ -57,7 +57,9 @@ export default function CreateAccountTab() {
           {submitted.needsConfirmation
             ? "Account created. Confirm your email address using the link we sent you, then log in."
             : "Account created successfully. You can now log in."}
-          {submitted.needsApproval && " District Officer and Control Room access is activated after administrator approval."}
+          {submitted.needsApproval && (selectedRole === "field-officer"
+            ? " Your account will be activated after approval by your District Officer or the Control Room."
+            : " Your account will be activated after approval by the Control Room.")}
         </p>
       </div>
     );
@@ -97,7 +99,7 @@ export default function CreateAccountTab() {
           setError(result.message);
           return;
         }
-        setSubmitted({ needsConfirmation: result.needsConfirmation, needsApproval: selectedRole !== "field-officer" });
+        setSubmitted({ needsConfirmation: result.needsConfirmation, needsApproval: selectedRole !== "control-room" });
       }}
       style={{ fontFamily: "'Noto Sans', sans-serif" }}
     >
@@ -357,7 +359,7 @@ export default function CreateAccountTab() {
         className="text-xs text-center leading-relaxed"
         style={{ color: "#5B6472", fontFamily: "'Noto Sans', sans-serif" }}
       >
-        Your account will be ready to use immediately after creation.
+        Field Officer and District Officer accounts are activated after approval.
       </p>
     </form>
   );

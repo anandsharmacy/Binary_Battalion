@@ -25,6 +25,7 @@ import AIInsights from '@/pages/AIInsights';
 import Alerts from '@/pages/Alerts';
 import Reports from '@/pages/Reports';
 import Analytics from '@/pages/Analytics';
+import Approvals from '@/pages/Approvals';
 
 type Screen = 'splash' | 'login' | 'create';
 type Dir = 'forward' | 'back';
@@ -266,6 +267,7 @@ function DashboardApp({ initialRole, source, onLogout }: { initialRole: Role; so
         case 'alerts': return <Alerts />;
         case 'reports': return <Reports />;
         case 'analytics': return <Analytics />;
+        case 'approvals': return <Approvals />;
         case 'fo-dashboard': return <FieldOfficerDashboard setPage={setPage} />;
         case 'fo-tasks': return <FOMyTasks />;
         case 'fo-report': return <FOReportIncident setPage={setPage} />;

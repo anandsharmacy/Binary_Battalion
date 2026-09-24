@@ -19,6 +19,7 @@ const NAV = [
   { key: 'tasks',     label: 'Tasks',         icon: '☑' },
   { key: 'ai',        label: 'AI Insights',   icon: '✦', gold: true },
   { key: 'alerts',    label: 'Alerts',        icon: '◬', badge: 3 },
+  { key: 'approvals', label: 'Approvals',     icon: '✓' },
   { key: 'reports',   label: 'Reports',       icon: '⊡' },
   { key: 'analytics', label: 'Analytics',     icon: '▨' },
 ];
@@ -39,6 +40,7 @@ const CR_NAV = [
   { key: 'incidents',  label: 'Incidents',      icon: '◆' },
   { key: 'routes',     label: 'Routes',         icon: '→' },
   { key: 'alerts',     label: 'Alerts',         icon: '◬' },
+  { key: 'approvals',  label: 'Approvals',      icon: '✓' },
   { key: 'analytics',  label: 'Analytics',      icon: '▨' },
 ];
 
@@ -47,7 +49,7 @@ const TITLES: Record<string, string> = {
   dashboard: 'Dashboard', map: 'District Map', incidents: 'Incidents',
   routes: 'Routes', logistics: 'Logistics',
   tasks: 'Tasks', ai: 'AI Insights', alerts: 'Alerts',
-  reports: 'Reports', analytics: 'Analytics',
+  reports: 'Reports', analytics: 'Analytics', approvals: 'Approvals',
   'fo-dashboard': 'Field Dashboard', 'fo-tasks': 'My Tasks', 'fo-report': 'Report Incident',
   'fo-alerts': 'Alerts',
   'fo-reports': 'Reports',

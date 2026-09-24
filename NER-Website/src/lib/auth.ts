@@ -68,18 +68,29 @@ async function loadAccount(): Promise<{ role: Role } | { error: string }> {
   const user = userData.user;
   if (!user) return { error: 'Your session has expired. Please sign in again.' };
 
-  const [{ data: dbRole }, { data: district }, { data: prof }] = await Promise.all([
+  const [{ data: dbRole }, { data: district }, { data: prof }, { data: ownRole }] = await Promise.all([
     supabase.rpc('my_role'),
     supabase.rpc('my_district_name'),
     supabase.from('profiles').select('full_name, officer_id, phone, organization, department, region, is_active')
       .eq('id', user.id).maybeSingle(),
+    supabase.from('user_roles').select('role, is_active').eq('user_id', user.id).maybeSingle(),
   ]);
 
   if (dbRole === 'rider') {
     return { error: 'Rider accounts use the NER Logistics mobile app.' };
   }
   const role = typeof dbRole === 'string' ? DB_ROLES[dbRole] : undefined;
-  if (!role || prof?.is_active === false) {
+  if (prof?.is_active === false) {
+    return { error: 'Your account request was not approved. Contact your district administrator.' };
+  }
+  if (!role && ownRole && !ownRole.is_active) {
+    return {
+      error: ownRole.role === 'field_officer'
+        ? 'Your account is awaiting approval from your District Officer or the Control Room.'
+        : 'Your account is awaiting approval from the Control Room.',
+    };
+  }
+  if (!role) {
     return { error: 'Your account has no active operational role. Contact your district administrator.' };
   }
 
