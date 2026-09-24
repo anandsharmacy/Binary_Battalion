@@ -53,6 +53,7 @@ export function addIncident(input: {
     severity: input.severity,
     reportedBy: input.reportedBy,
     reportedTime: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+    reportedAt: new Date().toISOString(),
     verification: 'Pending',
     assignedOfficer: null,
     status: 'PENDING_VERIFICATION',

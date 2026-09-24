@@ -56,7 +56,13 @@ function parseIncidentTime(timeStr?: string): number {
     return d.getTime();
   }
 
-  return now - 15 * 60 * 1000;
+  return NaN; // unusable timestamp: excluded from every time range rather than guessed
+}
+
+/** Actual report time: the stored ISO `reportedAt`, else the legacy display string. */
+function incidentTime(incident: { reportedAt?: string; reportedTime?: string }): number {
+  const iso = Date.parse(incident.reportedAt ?? '');
+  return Number.isNaN(iso) ? parseIncidentTime(incident.reportedTime) : iso;
 }
 
 function getTimeRangeCutoffMs(timeFilter: string): number {
@@ -81,8 +87,6 @@ export default function DistrictMap({ role }: { role?: Role }) {
   const [severities, setSeverities] = useState<Set<Severity>>(new Set());
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
   const [timeFilter, setTimeFilter] = useState('Last 24 hours');
-  const [showSim, setShowSim] = useState(false);
-  const [simRoute, setSimRoute] = useState('NH-27');
 
   useEffect(() => subscribeToIncidents(stored => setIncidents(stored)), []);
 
@@ -105,7 +109,7 @@ export default function DistrictMap({ role }: { role?: Role }) {
   const mapIncidents = useMemo(() => {
     const cutoff = Date.now() - getTimeRangeCutoffMs(timeFilter);
     return incidents.filter(incident => {
-      const incTime = parseIncidentTime(incident.reportedTime);
+      const incTime = incidentTime(incident);
       const withinTime = incTime >= cutoff;
       const withinSeverity = severities.size === 0 || severities.has(incident.severity);
       return withinTime && withinSeverity;
@@ -155,48 +159,7 @@ export default function DistrictMap({ role }: { role?: Role }) {
           <h1 className="font-semibold text-2xl" style={{ color: '#17212B' }}>{currentRole === 'control' ? 'Regional Map' : 'District Map'}</h1>
           <p className="text-sm mt-0.5" style={{ color: '#5A6670' }}>Geospatial intelligence — routes, incidents, logistics</p>
         </div>
-        {currentRole !== 'control' && (
-          <button
-            onClick={() => setShowSim(!showSim)}
-            className="text-xs font-medium px-3 py-2 rounded border transition-colors"
-            style={{ background: showSim ? '#17324D' : 'rgba(250,247,240,0.82)', color: showSim ? 'white' : '#17324D', borderColor: '#17324D' }}>
-            ◎ Simulate Route Closure
-          </button>
-        )}
       </div>
-
-      {/* Simulation panel */}
-      {currentRole !== 'control' && showSim && (
-        <div className="rounded-xl border p-4" style={{ background: '#FEF8E6', borderColor: '#F5DFA8' }}>
-          <div className="flex items-center gap-2 mb-3">
-            <span style={{ color: '#D7A73A' }}>✦</span>
-            <h3 className="font-semibold text-sm" style={{ color: '#17212B' }}>Route Closure Simulation — DEMO</h3>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
-            <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Select Route</label>
-              <select value={simRoute} onChange={e => setSimRoute(e.target.value)}
-                className="text-sm px-3 py-1.5 rounded border w-full"
-                style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(250,247,240,0.82)' }}>
-                {routes.map(r => <option key={r.id}>{r.id}</option>)}
-              </select>
-            </div>
-            {[
-              { label: 'Affected Districts', value: '3' },
-              { label: 'Logistics Movements', value: '17' },
-              { label: 'Add. Delay', value: '+1h 24m' },
-            ].map(item => (
-              <div key={item.label} className="rounded-lg p-3 border" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
-                <div className="text-xl font-bold" style={{ color: '#17212B' }}>{item.value}</div>
-                <div className="text-xs" style={{ color: '#5A6670' }}>{item.label}</div>
-              </div>
-            ))}
-          </div>
-          <div className="text-xs rounded p-2" style={{ background: '#FEE9E9', color: '#BE2424' }}>
-            ◆ Recommended: Deploy 2 field teams · Alternative routes: NH-37 (via Jorhat), NH-40 (via Shillong)
-          </div>
-        </div>
-      )}
 
       <div className="flex-1 flex gap-4 min-h-0">
         {/* Left controls */}

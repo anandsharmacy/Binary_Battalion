@@ -2,16 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import MapViz from '@/components/MapViz';
 import { SeverityBadge, StatusBadge } from '@/components/StatusBadge';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
-import { getTasks, subscribeToTasks } from '@/lib/taskStore';
+import { getAvgResponseMinutes, getTasks, subscribeToTasks } from '@/lib/taskStore';
 import { routes, vehicles, aiInsights } from '@/data/demo';
 import type { Alert } from '@/data/demo';
 import { profileService, type ProfileMeta } from '@/lib/profileService';
-
-const toMinutesSince = (reportedTime: string) => {
-  const parsed = new Date(reportedTime);
-  if (Number.isNaN(parsed.getTime())) return 0;
-  return Math.max(0, Math.round((Date.now() - parsed.getTime()) / 60000));
-};
 
 function buildAlerts(incidentList: ReturnType<typeof getIncidents>, taskList: ReturnType<typeof getTasks>): Alert[] {
   const incidentAlerts: Alert[] = incidentList.map(incident => ({
@@ -78,7 +72,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
   const blockedRoutes = useMemo(() => new Set(incidents.filter(i => i.status === 'ACTIVE' || i.status === 'ESCALATED').map(i => i.route)).size, [incidents]);
   const highRiskRoutes = useMemo(() => new Set(incidents.filter(i => i.severity === 'HIGH' || i.severity === 'CRITICAL').map(i => i.route)).size, [incidents]);
   const activeLogistics = useMemo(() => tasks.filter(task => task.status === 'New' || task.status === 'In Progress' || task.status === 'Escalated').length, [tasks]);
-  const avgResponseMinutes = incidents.length ? Math.round(incidents.reduce((sum, incident) => sum + toMinutesSince(incident.reportedTime), 0) / incidents.length) : 0;
+  const avgResponseMinutes = useMemo(() => getAvgResponseMinutes(tasks), [tasks]);
   const alerts = useMemo(() => buildAlerts(incidents, tasks), [incidents, tasks]);
   const criticalAlerts = alerts.filter(a => !a.acknowledged && (a.severity === 'CRITICAL' || a.severity === 'HIGH'));
   const highAlerts = alerts.filter(a => !a.acknowledged && a.severity === 'HIGH');
@@ -89,7 +83,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
     { label: 'High-Risk Routes', value: String(highRiskRoutes), icon: '▲', change: highRiskRoutes ? 'Priority monitoring' : 'Stable', changeUp: false, color: '#C4861A' },
     { label: 'Active Logistics', value: String(activeLogistics), icon: '⊟', change: activeLogistics ? 'Field operations active' : 'No active logistics', changeUp: false, color: '#2F6F7E' },
     { label: 'Pending Reports', value: String(pendingIncidents.length), icon: '⊡', change: pendingIncidents.length ? 'Awaiting verification' : 'All clear', changeUp: false, color: '#17324D' },
-    { label: 'Avg Response Time', value: `${avgResponseMinutes} min`, icon: '◷', change: avgResponseMinutes <= 45 ? 'Within SLA' : 'Needs attention', changeUp: avgResponseMinutes <= 45, color: '#C4861A' },
+    { label: 'Avg Response Time', value: avgResponseMinutes === null ? '—' : `${avgResponseMinutes} min`, icon: '◷', change: avgResponseMinutes === null ? 'No completed tasks yet' : avgResponseMinutes <= 45 ? 'Within SLA' : 'Needs attention', changeUp: avgResponseMinutes !== null && avgResponseMinutes <= 45, color: '#C4861A' },
   ];
 
   return (

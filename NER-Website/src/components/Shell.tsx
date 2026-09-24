@@ -117,8 +117,6 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
   const [now] = useState(
     new Date().toLocaleString('en-IN', {
       timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short',
@@ -157,37 +155,6 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
       alerts: role === 'field' ? fieldAlerts : role === 'control' ? controlAlerts : districtAlerts,
     };
   }, [incidents, tasks, role]);
-
-  const searchResults = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return [];
-
-    const results: Array<{ label: string; route: string; type: string; }> = [];
-
-    incidents.forEach(incident => {
-      const haystack = [incident.type, incident.location, incident.route, incident.description, incident.severity].join(' ').toLowerCase();
-      if (haystack.includes(query)) {
-        results.push({
-          label: `${incident.type} · ${incident.location}`,
-          route: role === 'field' ? 'fo-dashboard' : role === 'control' ? 'incidents' : 'incidents',
-          type: 'Incident',
-        });
-      }
-    });
-
-    tasks.forEach(task => {
-      const haystack = [task.title, task.location, task.description, task.status, task.priority].join(' ').toLowerCase();
-      if (haystack.includes(query)) {
-        results.push({
-          label: `${task.title} · ${task.location}`,
-          route: role === 'field' ? 'fo-tasks' : role === 'control' ? 'tasks' : 'tasks',
-          type: 'Task',
-        });
-      }
-    });
-
-    return results.slice(0, 6);
-  }, [incidents, tasks, role, searchQuery]);
 
   const saveProfile = async (updates: Partial<ProfileMeta>) => {
     const result = await profileService.updateProfile(updates);
@@ -392,58 +359,6 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
 
           <div className="flex-1" />
 
-          {/* Search */}
-          {role === 'district' && <div className="relative hidden sm:block z-30">
-            <div className="relative" style={{ width: 220 }}>
-              <input
-                value={searchQuery}
-                onFocus={() => setSearchOpen(true)}
-                onBlur={() => window.setTimeout(() => setSearchOpen(false), 120)}
-                onChange={event => {
-                  setSearchQuery(event.target.value);
-                  setSearchOpen(true);
-                }}
-                placeholder={t('Search incidents, routes, officers…')}
-                className="pl-8 pr-4 py-1.5 rounded border text-xs outline-none w-full"
-                style={{
-                  background: 'rgba(245,236,220,0.6)',
-                  borderColor: 'rgba(180,162,136,0.5)',
-                  color: '#17212B',
-                  backdropFilter: 'blur(8px)',
-                }}
-              />
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs"
-                style={{ color: '#8A9098' }}>⊕</span>
-            </div>
-            {searchOpen && searchQuery.trim() && (
-              <div className="absolute right-0 top-full mt-2 w-[320px] max-w-[calc(100vw-24px)] rounded-lg border shadow-xl z-40 overflow-hidden" style={{ background: '#FFFDF9', borderColor: 'rgba(180,162,136,0.45)' }}>
-                {searchResults.length ? (
-                  <div className="max-h-64 overflow-y-auto p-1">
-                    {searchResults.map(result => (
-                      <button
-                        key={`${result.type}-${result.label}`}
-                        onClick={() => {
-                          setPage(result.route);
-                          setSearchQuery('');
-                          setSearchOpen(false);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded text-xs transition-colors"
-                        style={{ color: '#17212B' }}
-                        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(23,50,77,0.06)')}
-                        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
-                      >
-                        <div className="font-semibold">{result.type}</div>
-                        <div style={{ color: '#5A6670' }}>{result.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="px-3 py-2 text-xs" style={{ color: '#5A6670' }}>No matching incidents or tasks found.</div>
-                )}
-              </div>
-            )}
-          </div>}
-
           {/* Time */}
           <div className="hidden md:block uppercase tracking-widest"
             style={{ fontSize: 10, color: 'rgba(90,102,112,0.8)' }}>
@@ -451,7 +366,7 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
           </div>
 
           {/* Notification */}
-          {role !== 'control' && (
+          {role === 'field' && (
             <button className="relative w-8 h-8 flex items-center justify-center rounded transition-colors"
               style={{ background: 'rgba(245,236,220,0.5)', border: '1px solid rgba(180,162,136,0.4)' }}>
               <span style={{ color: '#17324D', fontSize: 14 }}>◬</span>

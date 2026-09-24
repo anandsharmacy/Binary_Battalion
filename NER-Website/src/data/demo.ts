@@ -20,6 +20,8 @@ export interface Incident {
   severity: Severity;
   reportedBy: string;
   reportedTime: string;
+  /** ISO timestamp of the report; `reportedTime` is only the display string. */
+  reportedAt?: string;
   verification: 'Pending' | 'Verified' | 'Rejected';
   assignedOfficer: string | null;
   status: IncidentStatus;
@@ -84,6 +86,10 @@ export interface Task {
   description: string;
   /** District Officer's rejection reason, shown to the Field Officer. */
   verificationNote?: string;
+  /** ISO timestamps used for Avg Response Time. */
+  assignedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export interface Alert {

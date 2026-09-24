@@ -95,25 +95,6 @@ export default function Alerts() {
     }
   };
 
-  const assign = (id: string) => {
-    if (id.startsWith('incident-')) {
-      const incidentId = id.replace('incident-', '');
-      const incident = incidentList.find(item => item.id === incidentId);
-      if (incident && incident.assignedOfficer !== 'FO-1024') {
-        syncIncident(incidentId, { assignedOfficer: 'FO-1024', status: 'ACTIVE' });
-      }
-      return;
-    }
-
-    if (id.startsWith('task-')) {
-      const taskId = id.replace('task-', '');
-      const task = taskList.find(item => item.id === taskId);
-      if (task && task.assignedOfficer !== 'FO-1024') {
-        syncTask(taskId, { assignedOfficer: 'FO-1024', status: 'In Progress' });
-      }
-    }
-  };
-
   const escalate = (id: string) => {
     if (id.startsWith('incident-')) {
       const incidentId = id.replace('incident-', '');
@@ -211,10 +192,6 @@ export default function Alerts() {
                       className="text-xs font-medium px-3 py-1.5 rounded border"
                       style={{ borderColor: 'rgba(180,162,136,0.55)', color: '#5A6670' }}>
                       Acknowledge
-                    </button>
-                    <button onClick={() => assign(alert.id)} className="text-xs font-medium px-3 py-1.5 rounded border"
-                      style={{ borderColor: 'rgba(180,162,136,0.55)', color: '#5A6670' }}>
-                      Assign
                     </button>
                     {alert.severity === 'CRITICAL' || alert.severity === 'HIGH' ? (
                       <button onClick={() => escalate(alert.id)} className="text-xs font-medium px-3 py-1.5 rounded border"
