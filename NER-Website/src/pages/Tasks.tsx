@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SeverityBadge, StatusBadge } from '@/components/StatusBadge';
-import { getTasks, subscribeToTasks } from '@/lib/taskStore';
+import { getTasks, reviewTask, subscribeToTasks } from '@/lib/taskStore';
 
 const tabKeys = ['All', 'New', 'In Progress', 'Completed', 'Escalated'];
 
@@ -13,6 +13,12 @@ export default function Tasks() {
 
   const filtered = tasks.filter(t => tab === 'All' || t.status === tab);
   const selectedTask = tasks.find(task => task.id === selectedTaskId) ?? null;
+  const pendingReview = tasks.filter(task => task.status === 'Awaiting Verification');
+
+  const reject = (id: string) => {
+    const reason = window.prompt('Reason for rejection (optional)');
+    if (reason !== null) reviewTask(id, false, reason);
+  };
 
   return (
     <div className="space-y-5 max-w-screen-2xl">
@@ -26,6 +32,12 @@ export default function Tasks() {
           + Create Task
         </button>
       </div>
+
+      {pendingReview.length > 0 && (
+        <div className="rounded-xl border px-4 py-3 text-xs" style={{ background: '#FEF8E6', borderColor: '#F5DFA8', color: '#7A6D2A' }}>
+          <span className="font-semibold">Verification required:</span> {pendingReview.map(task => task.id).join(', ')}
+        </div>
+      )}
 
       {/* Summary */}
       <div className="grid grid-cols-5 gap-3">
@@ -88,6 +100,14 @@ export default function Tasks() {
                       style={{ borderColor: 'rgba(180,162,136,0.55)', color: selectedTaskId === task.id ? '#17324D' : '#2F6F7E' }}>
                       {selectedTaskId === task.id ? 'Hide' : 'View'}
                     </button>
+                    {task.status === 'Awaiting Verification' && (
+                      <span className="ml-2 inline-flex gap-1">
+                        <button onClick={() => reviewTask(task.id, true)} className="text-xs px-2 py-1 rounded border"
+                          style={{ borderColor: '#A8D4B8', background: '#EAF4EE', color: '#2D6B4F' }}>Verify</button>
+                        <button onClick={() => reject(task.id)} className="text-xs px-2 py-1 rounded border"
+                          style={{ borderColor: '#F5B8B8', background: '#FEE9E9', color: '#BE2424' }}>Reject</button>
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -113,6 +133,9 @@ export default function Tasks() {
             <div><span className="font-semibold" style={{ color: '#17212B' }}>Created:</span> {selectedTask.created}</div>
             <div><span className="font-semibold" style={{ color: '#17212B' }}>Deadline:</span> {selectedTask.deadline}</div>
             <div className="md:col-span-2"><span className="font-semibold" style={{ color: '#17212B' }}>Description:</span> {selectedTask.description}</div>
+            {selectedTask.verificationNote && (
+              <div className="md:col-span-2"><span className="font-semibold" style={{ color: '#17212B' }}>Rejection reason:</span> {selectedTask.verificationNote}</div>
+            )}
           </div>
         </div>
       )}

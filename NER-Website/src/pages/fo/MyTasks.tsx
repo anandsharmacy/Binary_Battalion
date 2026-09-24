@@ -3,18 +3,20 @@ import { SeverityBadge, StatusBadge } from '@/components/StatusBadge';
 import type { Severity } from '@/data/demo';
 import { Card, PageHeader, BORDER, SURFACE, SURFACE_2, TEAL } from './ui';
 import { profileService } from '@/lib/profileService';
-import { getTasks, subscribeToTasks, updateTask } from '@/lib/taskStore';
+import { getTasks, requestTaskVerification, subscribeToTasks, updateTask } from '@/lib/taskStore';
 
-type Life = 'Assigned' | 'Accepted' | 'In Progress' | 'Completed' | 'Verified';
+type Life = 'Assigned' | 'Accepted' | 'In Progress' | 'Completed' | 'Awaiting Verification' | 'Verified' | 'Rejected';
 
 interface FOTask {
   id: string; title: string; location: string; priority: Severity;
-  assigned: string; due: string; status: Life;
+  assigned: string; due: string; status: Life; note?: string;
 }
 
 const TABS = ['All', 'Pending', 'In Progress', 'Completed', 'Overdue'] as const;
-const NEXT: Record<Life, Life | null> = { Assigned: 'Accepted', Accepted: 'In Progress', 'In Progress': 'Completed', Completed: 'Verified', Verified: null };
-const ACTION_LABEL: Record<Life, string> = { Assigned: 'Accept Task', Accepted: 'Start Task', 'In Progress': 'Complete Task', Completed: 'Awaiting Verification', Verified: 'Verified' };
+// Completed → request District Officer verification; only the District Officer can move it to Verified/Rejected.
+const NEXT: Record<Life, Life | null> = { Assigned: 'Accepted', Accepted: 'In Progress', 'In Progress': 'Completed', Completed: 'Awaiting Verification', 'Awaiting Verification': null, Verified: null, Rejected: null };
+const ACTION_LABEL: Record<Life, string> = { Assigned: 'Accept Task', Accepted: 'Start Task', 'In Progress': 'Complete Task', Completed: 'Awaiting Verification', 'Awaiting Verification': 'Awaiting District Officer Verification', Verified: 'Verified', Rejected: 'Rejected by District Officer' };
+const DONE: Life[] = ['Completed', 'Awaiting Verification', 'Verified'];
 
 function toFieldTask(task: ReturnType<typeof getTasks>[number]): FOTask {
   return {
@@ -25,6 +27,7 @@ function toFieldTask(task: ReturnType<typeof getTasks>[number]): FOTask {
     assigned: task.created,
     due: task.deadline,
     status: task.status === 'New' ? 'Assigned' : task.status as Life,
+    note: task.verificationNote,
   };
 }
 
@@ -73,7 +76,8 @@ export default function MyTasks() {
     setBusy(id);
     setTimeout(() => {
       setTasks(ts => ts.map(x => x.id === id ? { ...x, status: NEXT[x.status]! } : x));
-      updateTask(id, { status: NEXT[t.status]! });
+      if (t.status === 'Completed') requestTaskVerification(id);
+      else updateTask(id, { status: NEXT[t.status]! });
       setBusy(null);
     }, 800);
   };
@@ -82,8 +86,8 @@ export default function MyTasks() {
     if (tab === 'All') return true;
     if (tab === 'Pending') return t.status === 'Assigned' || t.status === 'Accepted';
     if (tab === 'In Progress') return t.status === 'In Progress';
-    if (tab === 'Completed') return t.status === 'Completed' || t.status === 'Verified';
-    if (tab === 'Overdue') return t.due.startsWith('Yesterday') && t.status !== 'Completed' && t.status !== 'Verified';
+    if (tab === 'Completed') return DONE.includes(t.status);
+    if (tab === 'Overdue') return t.due.startsWith('Yesterday') && !DONE.includes(t.status);
     return true;
   });
 
@@ -98,8 +102,8 @@ export default function MyTasks() {
           const count = t === 'All' ? tasks.length : tasks.filter(x =>
             t === 'Pending' ? (x.status === 'Assigned' || x.status === 'Accepted') :
             t === 'In Progress' ? x.status === 'In Progress' :
-            t === 'Completed' ? (x.status === 'Completed' || x.status === 'Verified') :
-            x.due.startsWith('Yesterday') && x.status !== 'Completed' && x.status !== 'Verified'
+            t === 'Completed' ? DONE.includes(x.status) :
+            x.due.startsWith('Yesterday') && !DONE.includes(x.status)
           ).length;
           return (
             <button key={t} onClick={() => setTab(t)}
@@ -142,8 +146,12 @@ export default function MyTasks() {
                         style={{ borderColor: BORDER, color: TEAL, minHeight: 32 }}>
                         {busy === t.id ? 'Updating…' : ACTION_LABEL[t.status]}
                       </button>
-                    ) : (
+                    ) : t.status === 'Verified' ? (
                       <span className="text-xs" style={{ color: '#2D6B4F' }}>✓ {ACTION_LABEL[t.status]}</span>
+                    ) : t.status === 'Rejected' ? (
+                      <span className="text-xs" style={{ color: '#BE2424' }}>✕ {ACTION_LABEL[t.status]}{t.note ? ` — ${t.note}` : ''}</span>
+                    ) : (
+                      <span className="text-xs" style={{ color: '#C4861A' }}>◷ {ACTION_LABEL[t.status]}</span>
                     )}
                   </td>
                 </tr>

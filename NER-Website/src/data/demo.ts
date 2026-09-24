@@ -3,7 +3,7 @@ export type IncidentStatus = 'PENDING_VERIFICATION' | 'ACTIVE' | 'ESCALATED' | '
 export type IncidentType = 'Flood' | 'Landslide' | 'Road Blockage' | 'Accident' | 'Infrastructure Damage' | 'Vehicle Breakdown';
 export type RouteStatus = 'Open' | 'Restricted' | 'Blocked' | 'Closed';
 export type OfficerStatus = 'Available' | 'On Task' | 'Emergency' | 'Offline';
-export type TaskStatus = 'New' | 'In Progress' | 'Completed' | 'Escalated';
+export type TaskStatus = 'New' | 'In Progress' | 'Completed' | 'Escalated' | 'Awaiting Verification' | 'Verified' | 'Rejected';
 
 export interface IncidentEvidence {
   name: string;
@@ -82,6 +82,8 @@ export interface Task {
   status: TaskStatus;
   relatedIncident: string | null;
   description: string;
+  /** District Officer's rejection reason, shown to the Field Officer. */
+  verificationNote?: string;
 }
 
 export interface Alert {

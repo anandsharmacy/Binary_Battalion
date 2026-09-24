@@ -1,4 +1,5 @@
 import type { Severity, Task, TaskStatus } from '@/data/demo';
+import { profileService } from '@/lib/profileService';
 
 export type StoredTask = Task;
 
@@ -55,7 +56,24 @@ export function createTaskFromIncident(input: {
 }
 
 export function updateTask(id: string, updates: Partial<Pick<Task, 'status' | 'assignedOfficer'>>) {
+  // Verification outcomes only come from reviewTask (District Officer).
+  if (updates.status === 'Verified' || updates.status === 'Rejected') return;
   publish(readTasks().map(task => task.id === id ? { ...task, ...updates } : task));
+}
+
+/** Field Officer: send a completed task to the District Officer for verification. */
+export function requestTaskVerification(id: string) {
+  publish(readTasks().map(task => task.id === id && task.status === 'Completed'
+    ? { ...task, status: 'Awaiting Verification' }
+    : task));
+}
+
+/** District Officer only: approve or reject a pending verification request. */
+export function reviewTask(id: string, approve: boolean, reason = '') {
+  if (profileService.getCurrentRole() !== 'district') return;
+  publish(readTasks().map(task => task.id === id && task.status === 'Awaiting Verification'
+    ? { ...task, status: approve ? 'Verified' : 'Rejected', verificationNote: approve ? undefined : reason.trim() || undefined }
+    : task));
 }
 
 export function subscribeToTasks(listener: (tasks: StoredTask[]) => void) {

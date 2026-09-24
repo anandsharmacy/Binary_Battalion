@@ -30,6 +30,7 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; bo
   Completed: { label: 'Completed', bg: '#EAF4EE', text: '#2D6B4F', border: '#A8D4B8' },
   Escalated: { label: 'Escalated', bg: '#FEE9E9', text: '#BE2424', border: '#F5B8B8' },
   Pending: { label: 'Pending', bg: '#F0EEE6', text: '#7A6D2A', border: '#D8D0A8' },
+  'Awaiting Verification': { label: 'Awaiting Verification', bg: '#F0EEE6', text: '#7A6D2A', border: '#D8D0A8' },
   Verified: { label: 'Verified', bg: '#EAF4EE', text: '#2D6B4F', border: '#A8D4B8' },
   Rejected: { label: 'Rejected', bg: '#FEE9E9', text: '#BE2424', border: '#F5B8B8' },
   Active: { label: 'Active', bg: '#EAF4EE', text: '#2D6B4F', border: '#A8D4B8' },
