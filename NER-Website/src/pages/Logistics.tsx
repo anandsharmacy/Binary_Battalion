@@ -47,7 +47,6 @@ export default function Logistics() {
                   Show all
                 </button>
               )}
-              <StatusBadge status="DEMO DATA" />
             </div>
           </div>
           <MapViz incidents={[]} routes={routes} riders={riders} selectedRiderId={selectedRiderId} onSelectRider={setSelectedRiderId}
@@ -59,6 +58,9 @@ export default function Logistics() {
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Riders by State</h2>
           </div>
           <div className="divide-y" style={{ borderColor: 'rgba(238,228,210,0.88)' }}>
+            {byState.length === 0 && (
+              <div className="px-4 py-8 text-center text-sm" style={{ color: '#8A9098' }}>No riders reporting yet.</div>
+            )}
             {byState.map(group => (
               <div key={group.state} className="px-4 py-3">
                 <div className="flex items-center justify-between mb-1.5">
@@ -95,7 +97,6 @@ export default function Logistics() {
       <div className="rounded-xl border shadow-sm overflow-hidden" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
           <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Logistics Table</h2>
-          <StatusBadge status="DEMO DATA" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -108,6 +109,9 @@ export default function Logistics() {
               </tr>
             </thead>
             <tbody>
+              {riders.length === 0 && (
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-sm" style={{ color: '#8A9098' }}>No riders reporting yet.</td></tr>
+              )}
               {riders.map((r, i) => {
                 const selected = r.id === selectedRiderId;
                 return (

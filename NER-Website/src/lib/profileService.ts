@@ -21,47 +21,19 @@ const SESSION_KEY = 'ner-session-role';
 const ACCOUNTS_KEY = 'ner-accounts';
 const CURRENT_USER_KEY = 'ner-current-user-email';
 
-// Default profiles for each role
+// Neutral placeholders per role, shown only until the signed-in account's profile loads.
 const DEFAULT_PROFILES: Record<Role, ProfileMeta> = {
   control: {
-    label: 'Control Officer',
-    profileName: 'Anjali Rao',
-    profileInitials: 'AR',
-    officerId: 'NER-CO-0087',
-    department: 'Regional Command & Coordination',
-    region: 'North Eastern Region (8 States)',
-    phone: '+91 98640 12087',
-    email: 'anjali.rao@ner.gov.in',
-    lastLogin: 'Today, 08:14 AM IST',
-    status: 'Active',
+    label: 'Control Officer', profileName: 'Control Officer', profileInitials: 'CO', officerId: '', department: '',
+    region: 'North Eastern Region', phone: '', email: '', lastLogin: '', status: 'Active',
   },
   district: {
-    label: 'District Officer',
-    profileName: 'Dinesh Joshi',
-    profileInitials: 'DJ',
-    officerId: 'NER-DO-0342',
-    department: 'District Disaster & Logistics Management',
-    region: 'Kamrup Metro, Assam',
-    state: 'Assam',
-    district: 'Kamrup Metro',
-    phone: '+91 94350 20342',
-    email: 'dinesh.joshi@assam.gov.in',
-    lastLogin: 'Today, 09:02 AM IST',
-    status: 'Active',
+    label: 'District Officer', profileName: 'District Officer', profileInitials: 'DO', officerId: '', department: '',
+    region: '', phone: '', email: '', lastLogin: '', status: 'Active',
   },
   field: {
-    label: 'Field Officer',
-    profileName: 'Ravi Kumar',
-    profileInitials: 'RK',
-    officerId: 'NER-FO-1024',
-    department: 'Field Operations & Incident Response',
-    region: 'Dimapur District, Nagaland',
-    state: 'Nagaland',
-    district: 'Dimapur',
-    phone: '+91 88764 51024',
-    email: 'ravi.kumar@nagaland.gov.in',
-    lastLogin: 'Today, 10:05 AM IST',
-    status: 'On Duty',
+    label: 'Field Officer', profileName: 'Field Officer', profileInitials: 'FO', officerId: '', department: '',
+    region: '', phone: '', email: '', lastLogin: '', status: 'Active',
   },
 };
 
@@ -87,16 +59,6 @@ class ProfileService {
       }
     }
 
-    // Check demo accounts
-    if (key.includes('dinesh') || key.includes('r.borah') || key === 'ner-do-0342' || key === 'ner-do-2210') {
-      return DEFAULT_PROFILES.district;
-    }
-    if (key.includes('ravi') || key.includes('a.sangma') || key === 'ner-fo-1024' || key === 'ner-fo-4471') {
-      return DEFAULT_PROFILES.field;
-    }
-    if (key.includes('anjali') || key.includes('s.khongsdier') || key === 'ner-co-0087' || key === 'ner-cr-0007') {
-      return DEFAULT_PROFILES.control;
-    }
 
     return null;
   }

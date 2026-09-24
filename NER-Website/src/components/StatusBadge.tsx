@@ -36,7 +36,6 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; bo
   Active: { label: 'Active', bg: '#EAF4EE', text: '#2D6B4F', border: '#A8D4B8' },
   Inactive: { label: 'Inactive', bg: '#F0EFED', text: '#8A9098', border: 'rgba(180,162,136,0.55)' },
   Diverted: { label: 'Diverted', bg: '#FEF8E6', text: '#C4861A', border: '#F5DFA8' },
-  'DEMO DATA': { label: 'DEMO DATA', bg: '#F0EEE6', text: '#7A6D2A', border: '#D8D0A8' },
 };
 
 export function SeverityBadge({ severity }: { severity: Severity }) {

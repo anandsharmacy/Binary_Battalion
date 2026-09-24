@@ -301,9 +301,7 @@ function EditProfileSection({ meta, onSave }: { meta: ProfileMeta; onSave: (upda
 // ─── security section ─────────────────────────────────────────────────────────
 
 const SESSIONS = [
-  { device: 'Chrome · Windows 11', location: 'Guwahati, AS', time: 'Active now', current: true },
-  { device: 'Mobile · Android 14', location: 'Dimapur, NL', time: '2h ago', current: false },
-  { device: 'Firefox · macOS', location: 'Kohima, NL', time: '1d ago', current: false },
+  { device: 'This browser', location: 'Signed in', time: 'Active now', current: true },
 ];
 
 function SecuritySection() {
