@@ -229,6 +229,10 @@ export default function MapViz({
     return () => {
       window.clearTimeout(loadTimer);
       observer.disconnect();
+      // Leaflet 1.9 ends zoom animations on an untracked 250ms timer that outlives remove(); with this
+      // flag cleared that late callback returns early instead of crashing on the deleted map pane.
+      // ponytail: relies on a private Leaflet field; recheck when upgrading Leaflet.
+      (instance as unknown as { _animatingZoom?: boolean })._animatingZoom = false;
       instance.remove();
       setMap(null);
     };
