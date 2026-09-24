@@ -6,7 +6,7 @@ export type StoredTask = Task;
 const STORAGE_KEY = 'ner-tasks';
 const AVG_RESPONSE_KEY = 'ner-avg-response-minutes';
 // Post-completion states still count as completed work; a rejected verification does not.
-const COMPLETED: TaskStatus[] = ['Completed', 'Awaiting Verification', 'Verified'];
+export const COMPLETED_TASK_STATUSES: TaskStatus[] = ['Completed', 'Awaiting Verification', 'Verified'];
 const TASKS_CHANGED = 'ner-tasks-changed';
 
 function readTasks(): StoredTask[] {
@@ -28,9 +28,9 @@ function publish(tasks: StoredTask[]) {
 }
 
 /** Mean minutes from start (else assignment) to completion over completed, officer-handled tasks; null when none are valid. */
-function averageResponseMinutes(tasks: StoredTask[]): number | null {
+export function averageResponseMinutes(tasks: StoredTask[]): number | null {
   const durations = tasks
-    .filter(task => task.assignedOfficer && COMPLETED.includes(task.status))
+    .filter(task => task.assignedOfficer && COMPLETED_TASK_STATUSES.includes(task.status))
     .map(task => Date.parse(task.completedAt ?? '') - Date.parse(task.startedAt ?? task.assignedAt ?? ''))
     .filter(ms => ms >= 0); // NaN (missing/invalid timestamp) fails this and is dropped
   return durations.length ? Math.round(durations.reduce((sum, ms) => sum + ms, 0) / durations.length / 60000) : null;

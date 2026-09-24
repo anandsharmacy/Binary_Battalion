@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
-import { getTasks, subscribeToTasks } from '@/lib/taskStore';
+import { COMPLETED_TASK_STATUSES, averageResponseMinutes, getTasks, subscribeToTasks } from '@/lib/taskStore';
 import {
   NORTHEAST_DISTRICTS,
   NORTHEAST_STATES,
@@ -8,7 +8,16 @@ import {
   matchLocationToDistrictAndState,
 } from '@/data/northeastDistricts';
 
-const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Today'];
+type Place = { district?: string; state?: string };
+
+/** District/state named by the record's location field, else by its free text. */
+function placeOf(location: string | undefined, extra: string): Place {
+  const place = matchLocationToDistrictAndState(location ?? '');
+  return place.state ? place : matchLocationToDistrictAndState(extra);
+}
+
+/** Report time: the stored ISO `reportedAt`, else the legacy display string (NaN if unusable). */
+const reportedMs = (incident: { reportedAt?: string; reportedTime: string }) => Date.parse(incident.reportedAt || incident.reportedTime);
 
 function LineChart({ data, color, height = 80 }: { data: number[]; color: string; height?: number }) {
   if (!data.length) {
@@ -87,57 +96,16 @@ export default function Analytics() {
     }
   };
 
-  const filteredIncidents = useMemo(() => {
-    return incidents.filter(incident => {
-      const matched = matchLocationToDistrictAndState(`${incident.location || ''} ${incident.description || ''} ${incident.route || ''}`);
+  const placedIncidents = useMemo(() => incidents.map(item => ({ item, place: placeOf(item.location, `${item.description || ''} ${item.route || ''}`) })), [incidents]);
+  const placedTasks = useMemo(() => tasks.map(item => ({ item, place: placeOf(item.location, item.description || '') })), [tasks]);
 
-      if (selectedState !== 'ALL') {
-        if (matched.state) {
-          if (matched.state !== selectedState) return false;
-        } else {
-          const text = `${incident.location || ''} ${incident.description || ''} ${incident.route || ''}`.toLowerCase();
-          if (!text.includes(selectedState.toLowerCase())) return false;
-        }
-      }
+  const filteredIncidents = useMemo(() => placedIncidents
+    .filter(({ place }) => (selectedState === 'ALL' || place.state === selectedState) && (selectedDistrict === 'ALL' || place.district === selectedDistrict))
+    .map(({ item }) => item), [placedIncidents, selectedState, selectedDistrict]);
 
-      if (selectedDistrict !== 'ALL') {
-        if (matched.district) {
-          if (matched.district !== selectedDistrict) return false;
-        } else {
-          const text = `${incident.location || ''} ${incident.description || ''} ${incident.route || ''}`.toLowerCase();
-          if (!text.includes(selectedDistrict.toLowerCase())) return false;
-        }
-      }
-
-      return true;
-    });
-  }, [incidents, selectedState, selectedDistrict]);
-
-  const filteredTasks = useMemo(() => {
-    return tasks.filter(task => {
-      const matched = matchLocationToDistrictAndState(`${task.location || ''} ${task.description || ''}`);
-
-      if (selectedState !== 'ALL') {
-        if (matched.state) {
-          if (matched.state !== selectedState) return false;
-        } else {
-          const text = `${task.location || ''} ${task.description || ''}`.toLowerCase();
-          if (!text.includes(selectedState.toLowerCase())) return false;
-        }
-      }
-
-      if (selectedDistrict !== 'ALL') {
-        if (matched.district) {
-          if (matched.district !== selectedDistrict) return false;
-        } else {
-          const text = `${task.location || ''} ${task.description || ''}`.toLowerCase();
-          if (!text.includes(selectedDistrict.toLowerCase())) return false;
-        }
-      }
-
-      return true;
-    });
-  }, [tasks, selectedState, selectedDistrict]);
+  const filteredTasks = useMemo(() => placedTasks
+    .filter(({ place }) => (selectedState === 'ALL' || place.state === selectedState) && (selectedDistrict === 'ALL' || place.district === selectedDistrict))
+    .map(({ item }) => item), [placedTasks, selectedState, selectedDistrict]);
 
   const lastNineDays = useMemo(() => {
     return Array.from({ length: 9 }, (_, index) => {
@@ -146,14 +114,15 @@ export default function Analytics() {
       return date;
     });
   }, []);
+  const days = useMemo(() => lastNineDays.map((date, i) => i === lastNineDays.length - 1 ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' })), [lastNineDays]);
 
   const incidentTrend = useMemo(() => {
     return lastNineDays.map(date => {
       const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
       return filteredIncidents.filter(incident => {
-        const timestamp = new Date(incident.reportedTime);
-        return !Number.isNaN(timestamp.getTime()) && timestamp >= start && timestamp < end;
+        const timestamp = reportedMs(incident);
+        return timestamp >= start.getTime() && timestamp < end.getTime();
       }).length;
     });
   }, [filteredIncidents, lastNineDays]);
@@ -170,39 +139,28 @@ export default function Analytics() {
       routeMap.set(routeName, { accessible, restricted });
     });
 
-    if (routeMap.size === 0) {
-      const scopeLabel = selectedDistrict !== 'ALL' ? selectedDistrict : selectedState !== 'ALL' ? selectedState : 'All Regions';
-      return [{ name: `${scopeLabel} Route`, accessible: 100, restricted: 0 }];
-    }
-
     return Array.from(routeMap.entries()).slice(0, 4).map(([name, value]) => ({ name, ...value }));
-  }, [filteredIncidents, selectedState, selectedDistrict]);
+  }, [filteredIncidents]);
 
   const responseTime = useMemo(() => {
     return lastNineDays.map(date => {
-      const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-      const dayIncidents = filteredIncidents.filter(incident => {
-        const timestamp = new Date(incident.reportedTime);
-        return !Number.isNaN(timestamp.getTime()) && timestamp >= start && timestamp < end;
+      const start = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+      const end = start + 24 * 60 * 60 * 1000;
+      const completed = filteredTasks.filter(task => {
+        const completedAt = Date.parse(task.completedAt ?? '');
+        return completedAt >= start && completedAt < end;
       });
-
-      if (!dayIncidents.length) return 0;
-      return Math.round(dayIncidents.reduce((sum, incident) => {
-        const ts = new Date(incident.reportedTime).getTime();
-        const mins = Number.isNaN(ts) ? 20 : Math.max(0, Math.round((Date.now() - ts) / 60000));
-        return sum + mins;
-      }, 0) / dayIncidents.length);
+      return averageResponseMinutes(completed) ?? 0;
     });
-  }, [filteredIncidents, lastNineDays]);
+  }, [filteredTasks, lastNineDays]);
 
   const riskTrend = useMemo(() => {
     return lastNineDays.map(date => {
       const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
       const dayIncidents = filteredIncidents.filter(incident => {
-        const timestamp = new Date(incident.reportedTime);
-        return !Number.isNaN(timestamp.getTime()) && timestamp >= start && timestamp < end;
+        const timestamp = reportedMs(incident);
+        return timestamp >= start.getTime() && timestamp < end.getTime();
       });
       if (!dayIncidents.length) return 0;
       return Math.round(dayIncidents.reduce((sum, incident) => sum + Number(incident.riskScore || 0), 0) / dayIncidents.length);
@@ -211,17 +169,11 @@ export default function Analytics() {
 
   const summary = useMemo(() => {
     const totalIncidents = filteredIncidents.length;
-    const avgResponseMinutes = filteredIncidents.length
-      ? Math.round(filteredIncidents.reduce((sum, incident) => {
-          const ts = new Date(incident.reportedTime).getTime();
-          const mins = Number.isNaN(ts) ? 20 : Math.max(0, Math.round((Date.now() - ts) / 60000));
-          return sum + mins;
-        }, 0) / filteredIncidents.length)
-      : 0;
+    const avgResponseMinutes = averageResponseMinutes(filteredTasks);
     const accessibility = routeAccessibility.length
       ? Math.round(routeAccessibility.reduce((sum, route) => sum + route.accessible, 0) / routeAccessibility.length)
       : 100;
-    const onTimeLogistics = filteredTasks.length ? Math.round((filteredTasks.filter(task => task.status === 'Completed').length / filteredTasks.length) * 100) : 100;
+    const onTimeLogistics = filteredTasks.length ? Math.round((filteredTasks.filter(task => COMPLETED_TASK_STATUSES.includes(task.status)).length / filteredTasks.length) * 100) : 100;
     const unresolved = filteredIncidents.filter(item => ['PENDING_VERIFICATION', 'ACTIVE', 'UNDER_REVIEW', 'ESCALATED'].includes(item.status)).length;
     return {
       totalIncidents,
@@ -244,24 +196,12 @@ export default function Analytics() {
     }
 
     const rows = districtsToDisplay.map(({ district, state }) => {
-      const distIncidents = incidents.filter(i => {
-        const m = matchLocationToDistrictAndState(`${i.location || ''} ${i.description || ''} ${i.route || ''}`);
-        return m.district === district || (!m.district && (i.location || '').toLowerCase().includes(district.toLowerCase()));
-      });
-
-      const distTasks = tasks.filter(t => {
-        const m = matchLocationToDistrictAndState(`${t.location || ''} ${t.description || ''}`);
-        return m.district === district || (!m.district && (t.location || '').toLowerCase().includes(district.toLowerCase()));
-      });
+      const here = (place: Place) => place.district === district && place.state === state;
+      const distIncidents = placedIncidents.filter(p => here(p.place)).map(p => p.item);
+      const distTasks = placedTasks.filter(p => here(p.place)).map(p => p.item);
 
       const incCount = distIncidents.length;
-      const avgResp = incCount > 0
-        ? Math.round(distIncidents.reduce((s, i) => {
-            const ts = new Date(i.reportedTime).getTime();
-            const mins = Number.isNaN(ts) ? 20 : Math.max(0, Math.round((Date.now() - ts) / 60000));
-            return s + mins;
-          }, 0) / incCount)
-        : 0;
+      const avgResp = averageResponseMinutes(distTasks);
 
       const access = incCount > 0
         ? distIncidents.reduce((acc, i) => {
@@ -277,7 +217,7 @@ export default function Analytics() {
         district,
         state,
         incidents: incCount,
-        response: `${avgResp} min`,
+        response: avgResp === null ? '—' : `${avgResp} min`,
         access: `${access}%`,
         delays,
         unresolved,
@@ -290,7 +230,7 @@ export default function Analytics() {
       if (a.state !== b.state) return a.state.localeCompare(b.state);
       return a.district.localeCompare(b.district);
     });
-  }, [incidents, tasks, selectedState, selectedDistrict]);
+  }, [placedIncidents, placedTasks, selectedState, selectedDistrict]);
 
   return (
     <div className="space-y-5 max-w-screen-2xl">
@@ -338,7 +278,7 @@ export default function Analytics() {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
           { label: 'Total Incidents (7d)', value: String(summary.totalIncidents), delta: `${incidentTrend.reduce((sum, val) => sum + val, 0)} in last 9 days`, up: true },
-          { label: 'Avg Response Time', value: `${summary.avgResponseMinutes} min`, delta: summary.avgResponseMinutes <= 35 ? 'Within target' : 'Needs attention', up: summary.avgResponseMinutes <= 35 },
+          { label: 'Avg Response Time', value: summary.avgResponseMinutes === null ? '—' : `${summary.avgResponseMinutes} min`, delta: summary.avgResponseMinutes === null ? 'No completed tasks' : summary.avgResponseMinutes <= 35 ? 'Within target' : 'Needs attention', up: summary.avgResponseMinutes !== null && summary.avgResponseMinutes <= 35 },
           { label: 'Route Accessibility', value: `${summary.accessibility}%`, delta: `${summary.accessibility >= 70 ? 'Stable' : 'Watchlist'} access`, up: summary.accessibility >= 70 },
           { label: 'Logistics On-Time', value: `${summary.onTimeLogistics}%`, delta: `${summary.onTimeLogistics >= 80 ? 'Strong' : 'Monitoring'} flow`, up: summary.onTimeLogistics >= 80 },
           { label: 'Unresolved >24h', value: String(summary.unresolved), delta: summary.unresolved === 0 ? 'All clear' : 'Needs follow-up', up: summary.unresolved === 0 },
