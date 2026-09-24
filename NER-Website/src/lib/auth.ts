@@ -5,10 +5,9 @@ import { supabase } from '@/lib/supabase';
 /**
  * Sign-in for the officer website.
  *
- * Supabase checks the password and the database decides the role (SRS AUTH-001,
- * AUTH-003). Only when the backend can't be reached — never on a wrong password —
- * does the site fall back to the local demo login, labelled "offline demo". Live
- * panels such as ML risk need a real session; the database enforces that.
+ * Supabase Auth checks the password and the database decides the role (SRS AUTH-001,
+ * AUTH-003). There is no local or demo fallback: without a verified Supabase session
+ * nobody reaches a dashboard.
  */
 export type SessionSource = 'supabase' | 'demo-offline';
 
@@ -18,15 +17,7 @@ export type SignInResult =
 
 const SOURCE_KEY = 'ner-session-source';
 
-// Seeded demo officer IDs -> their Supabase emails (supabase/seed.sql).
-const OFFICER_ID_EMAILS: Record<string, string> = {
-  'ner-fo-4471': 'a.sangma@ner.gov.in',
-  'ner-do-2210': 'r.borah@kamrup.gov.in',
-  'ner-do-2281': 'r.borah@kamrup.gov.in',
-  'ner-cr-0007': 's.khongsdier@ner.gov.in',
-  'ner-co-0012': 's.khongsdier@ner.gov.in',
-  'ner-rd-1184': 'p.lyngdoh@ner.gov.in',
-};
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const DB_ROLES: Record<string, Role> = {
   field_officer: 'field',
@@ -101,7 +92,8 @@ async function loadAccount(): Promise<{ role: Role } | { error: string }> {
     profileName: name,
     profileInitials: initials(name),
     officerId: prof?.officer_id ?? '',
-    department: prof?.department ?? prof?.organization ?? '',
+    // Department is display-only, so the sign-up metadata is an acceptable fallback here.
+    department: prof?.department ?? prof?.organization ?? (user.user_metadata?.department as string | undefined) ?? '',
     region: (district as string | null) ?? prof?.region ?? 'North Eastern Region',
     district: (district as string | null) ?? undefined,
     phone: prof?.phone ?? '',
@@ -114,28 +106,22 @@ async function loadAccount(): Promise<{ role: Role } | { error: string }> {
   return { role };
 }
 
-function demoSignIn(identity: string): SignInResult {
-  const { role } = profileService.loginWithIdentity(identity);
-  setSource('demo-offline');
-  return { ok: true, role, source: 'demo-offline' };
-}
-
 export async function signIn(identity: string, password: string): Promise<SignInResult> {
-  const id = identity.trim();
-  if (!id || !password) return { ok: false, message: 'Enter your email and password to continue.' };
-  if (!supabase) return demoSignIn(id);
+  const email = identity.trim();
+  if (!email || !password) return { ok: false, message: 'Enter your email and password to continue.' };
+  if (!EMAIL_PATTERN.test(email)) return { ok: false, message: 'Enter a valid email address.' };
+  if (!supabase) return { ok: false, message: 'The sign-in service is not configured for this build.' };
 
-  const email = id.includes('@') ? id : OFFICER_ID_EMAILS[id.toLowerCase()];
-  if (!email) return { ok: false, message: 'Sign in with your official email address or officer ID.' };
-
-  let error: { name?: string; status?: number; message?: string } | null = null;
+  let error: { name?: string; status?: number; message?: string; code?: string } | null = null;
   try {
     ({ error } = await supabase.auth.signInWithPassword({ email, password }));
   } catch (e) {
     error = { name: 'AuthRetryableFetchError', message: String(e) };
   }
   if (error) {
-    return isUnreachable(error) ? demoSignIn(id) : { ok: false, message: 'The email or password is incorrect.' };
+    if (isUnreachable(error)) return { ok: false, message: 'Unable to reach the sign-in service. Check your connection and try again.' };
+    if (error.code === 'email_not_confirmed') return { ok: false, message: 'Confirm your email address using the link we sent you, then log in.' };
+    return { ok: false, message: 'Invalid email or password.' };
   }
 
   const account = await loadAccount();
@@ -147,11 +133,59 @@ export async function signIn(identity: string, password: string): Promise<SignIn
   return { ok: true, role: account.role, source: 'supabase' };
 }
 
+const REQUESTED_ROLES: Record<Role, string> = {
+  field: 'field_officer',
+  district: 'district_officer',
+  control: 'control_room',
+};
+
+export type SignUpResult = { ok: true; needsConfirmation: boolean } | { ok: false; message: string };
+
+/**
+ * Creates the account in Supabase Auth. The `on_auth_user_created` trigger turns the metadata into the
+ * profile and role rows; district and control-room roles start inactive until an administrator approves them.
+ */
+export async function signUp(input: {
+  email: string; password: string; fullName: string; role: Role; state?: string; district?: string; department?: string;
+}): Promise<SignUpResult> {
+  if (!supabase) return { ok: false, message: 'The sign-in service is not configured for this build.' };
+
+  let result: Awaited<ReturnType<typeof supabase.auth.signUp>>;
+  try {
+    result = await supabase.auth.signUp({
+      email: input.email.trim(),
+      password: input.password,
+      options: {
+        data: {
+          full_name: input.fullName.trim(),
+          requested_role: REQUESTED_ROLES[input.role],
+          state: input.state ?? '',
+          district: input.district ?? '',
+          department: input.department?.trim() ?? '',
+        },
+      },
+    });
+  } catch {
+    return { ok: false, message: 'Unable to reach the sign-in service. Check your connection and try again.' };
+  }
+
+  const { data, error } = result;
+  if (error) {
+    if (isUnreachable(error)) return { ok: false, message: 'Unable to reach the sign-in service. Check your connection and try again.' };
+    if (error.code === 'user_already_exists' || error.code === 'email_exists') return { ok: false, message: 'An account with this email already exists. Log in instead.' };
+    if (error.code === 'weak_password') return { ok: false, message: error.message || 'Choose a stronger password.' };
+    if (error.code === 'email_address_invalid') return { ok: false, message: 'Enter a valid email address.' };
+    if (error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit') return { ok: false, message: 'Too many sign-up attempts. Please try again later.' };
+    return { ok: false, message: 'Could not create the account. Please try again.' };
+  }
+  // The form tells people to log in next, so don't leave a session the app isn't tracking.
+  if (data.session) await supabase.auth.signOut().catch(() => undefined);
+  return { ok: true, needsConfirmation: !data.session };
+}
+
 /** Restores the session on page load; null means "show the login screen". */
 export async function restoreSession(): Promise<{ role: Role; source: SessionSource } | null> {
   const source = getSessionSource();
-  const stored = profileService.getCurrentRole();
-  if (source === 'demo-offline' && stored) return { role: stored, source };
   if (source !== 'supabase' || !supabase) {
     profileService.clearSession();
     setSource(null);
@@ -171,15 +205,22 @@ export async function restoreSession(): Promise<{ role: Role; source: SessionSou
     }
     return { role: account.role, source };
   } catch {
-    // Backend briefly unreachable: keep the stored role; the database still guards the data.
-    return stored ? { role: stored, source } : null;
+    // Can't verify the session with Supabase, so don't trust anything stored locally.
+    return null;
   }
 }
 
 export async function signOut(): Promise<void> {
-  if (supabase && getSessionSource() === 'supabase') {
-    await supabase.auth.signOut().catch(() => undefined);
-  }
+  if (supabase) await supabase.auth.signOut().catch(() => undefined);
   profileService.clearSession();
   setSource(null);
+}
+
+/** Calls `onEnd` when the Supabase session ends (logout in another tab, revoked or expired refresh token). */
+export function watchSessionEnd(onEnd: () => void): () => void {
+  if (!supabase) return () => {};
+  const { data } = supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') onEnd();
+  });
+  return () => data.subscription.unsubscribe();
 }

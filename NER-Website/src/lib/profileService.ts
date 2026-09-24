@@ -69,19 +69,6 @@ class ProfileService {
   private listeners: Set<(profile: ProfileMeta) => void> = new Set();
   private currentProfile: ProfileMeta | null = null;
 
-  // Register a newly created account and make it active
-  registerAccount(profile: ProfileMeta): void {
-    const role = this.getRoleFromLabel(profile.label) || 'district';
-    this.saveAccount(profile);
-    this.currentProfile = profile;
-    this.saveToStorage(profile);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(SESSION_KEY, role);
-      window.localStorage.setItem(CURRENT_USER_KEY, profile.email.toLowerCase());
-    }
-    this.notifyListeners(profile);
-  }
-
   // Find an account by email or officer ID
   findAccount(identity: string): ProfileMeta | null {
     if (!identity) return null;
@@ -111,59 +98,6 @@ class ProfileService {
       return DEFAULT_PROFILES.control;
     }
 
-    return null;
-  }
-
-  // Login with identity (email or officerId)
-  loginWithIdentity(identity: string): { role: Role; profile: ProfileMeta } {
-    const matched = this.findAccount(identity);
-    let profile: ProfileMeta;
-    let role: Role;
-
-    if (matched) {
-      role = this.getRoleFromLabel(matched.label) || 'district';
-      profile = {
-        ...matched,
-        lastLogin: `Today, ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} IST`,
-      };
-    } else {
-      // Role inferred from text
-      const inferredRole = this.inferRoleFromIdentity(identity) || 'district';
-      role = inferredRole;
-      profile = {
-        ...DEFAULT_PROFILES[role],
-        lastLogin: `Today, ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} IST`,
-      };
-      if (identity.includes('@')) {
-        profile.email = identity.trim();
-      }
-    }
-
-    this.currentProfile = profile;
-    this.saveToStorage(profile);
-    this.saveAccount(profile);
-
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(SESSION_KEY, role);
-      window.localStorage.setItem(CURRENT_USER_KEY, profile.email.toLowerCase());
-    }
-
-    this.notifyListeners(profile);
-    return { role, profile };
-  }
-
-  // Infer role helper
-  inferRoleFromIdentity(identity: string): Role | null {
-    const value = identity.trim().toLowerCase();
-    if (value.includes('field') || value.includes('fo-') || value.includes('fo@') || /^fo\d+/.test(value) || /ravi|kumar|nagaland/.test(value)) {
-      return 'field';
-    }
-    if (value.includes('control') || value.includes('co-') || value.includes('co@') || /^co\d+/.test(value) || /anjali|rao/.test(value)) {
-      return 'control';
-    }
-    if (value.includes('district') || value.includes('do-') || value.includes('do@') || /^do\d+/.test(value) || /dinesh|joshi|assam/.test(value)) {
-      return 'district';
-    }
     return null;
   }
 

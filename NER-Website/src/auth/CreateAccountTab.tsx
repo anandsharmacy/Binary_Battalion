@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { EyeIcon, EyeOffIcon, MapPinIcon, BuildingIcon, RadarIcon, ChevronDownIcon } from "./Icons";
 import { NER_STATE_DISTRICTS, NER_STATES } from "../data/nerStateDistricts";
-import { profileService } from "@/lib/profileService";
+import { EMAIL_PATTERN, signUp } from "@/lib/auth";
 
 type Role = "field-officer" | "district-officer" | "control-room" | null;
 
@@ -40,7 +40,11 @@ export default function CreateAccountTab() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState<null | { needsConfirmation: boolean; needsApproval: boolean }>(null);
 
   const isOfficer = selectedRole === "field-officer" || selectedRole === "district-officer";
   const canSubmit = selectedRole !== null && fullName.trim() !== "" && email.trim() !== "" &&
@@ -50,7 +54,10 @@ export default function CreateAccountTab() {
     return (
       <div className="flex flex-col items-center gap-3 text-center" style={{ fontFamily: "'Noto Sans', sans-serif" }}>
         <p className="text-sm font-semibold" style={{ color: "#1E6B45" }}>
-          Account created successfully. You can now log in.
+          {submitted.needsConfirmation
+            ? "Account created. Confirm your email address using the link we sent you, then log in."
+            : "Account created successfully. You can now log in."}
+          {submitted.needsApproval && " District Officer and Control Room access is activated after administrator approval."}
         </p>
       </div>
     );
@@ -59,30 +66,38 @@ export default function CreateAccountTab() {
   return (
     <form
       className="flex flex-col gap-5"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        if (!canSubmit || !selectedRole) return;
-        const roleLabel = selectedRole === "field-officer" ? "Field Officer" : selectedRole === "district-officer" ? "District Officer" : "Control Officer";
-        const regionValue = isOfficer ? `${selectedDistrict}, ${selectedState}` : "North Eastern Region";
-        const roleShort = selectedRole === "field-officer" ? "FO" : selectedRole === "district-officer" ? "DO" : "CO";
-        const randomId = Math.floor(1000 + Math.random() * 9000);
-        const profile = {
-          profileName: fullName.trim(),
-          profileInitials: fullName.trim().split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
-          officerId: `NER-${roleShort}-${randomId}`,
-          department: department.trim() || (selectedRole === "field-officer" ? "Field Operations & Incident Response" : selectedRole === "district-officer" ? "District Disaster & Logistics Management" : "Regional Command & Coordination"),
-          region: regionValue,
+        if (!canSubmit || !selectedRole || isSubmitting) return;
+        setError(null);
+        if (!EMAIL_PATTERN.test(email.trim())) {
+          setError("Enter a valid official email address.");
+          return;
+        }
+        if (password.length < 8) {
+          setError("Password must be at least 8 characters.");
+          return;
+        }
+        if (password !== confirmPassword) {
+          setError("Passwords do not match.");
+          return;
+        }
+        setIsSubmitting(true);
+        const result = await signUp({
+          email,
+          password,
+          fullName,
+          role: selectedRole === "field-officer" ? "field" : selectedRole === "district-officer" ? "district" : "control",
           state: isOfficer ? selectedState : undefined,
           district: isOfficer ? selectedDistrict : undefined,
-          phone: "",
-          email: email.trim(),
-          label: roleLabel,
-          lastLogin: "Current session",
-          status: "Active",
-        };
-        profileService.registerAccount(profile);
-        localStorage.setItem("ner-registration-email", email.trim().toLowerCase());
-        setSubmitted(true);
+          department,
+        });
+        setIsSubmitting(false);
+        if (!result.ok) {
+          setError(result.message);
+          return;
+        }
+        setSubmitted({ needsConfirmation: result.needsConfirmation, needsApproval: selectedRole !== "field-officer" });
       }}
       style={{ fontFamily: "'Noto Sans', sans-serif" }}
     >
@@ -129,6 +144,8 @@ export default function CreateAccountTab() {
             id="new-password"
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="Minimum 8 characters"
             className="glass-field accent-green has-toggle"
           />
@@ -143,6 +160,8 @@ export default function CreateAccountTab() {
             id="confirm-password"
             type={showConfirm ? "text" : "password"}
             autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Re-enter password"
             className="glass-field accent-green has-toggle"
           />
@@ -303,10 +322,17 @@ export default function CreateAccountTab() {
         </>
       )}
 
+      {error && (
+        <p role="alert" className="text-xs rounded px-3 py-2"
+          style={{ background: "rgba(179,38,30,0.08)", color: "#B3261E", border: "1px solid rgba(179,38,30,0.25)" }}>
+          {error}
+        </p>
+      )}
+
       {/* Submit */}
       <button
         type="submit"
-        disabled={!canSubmit}
+        disabled={!canSubmit || isSubmitting}
         className="w-full py-2.5 text-sm font-semibold transition-colors mt-1"
         style={{
           backgroundColor: canSubmit ? "#0E2A47" : "rgba(91,100,114,0.25)",
@@ -324,7 +350,7 @@ export default function CreateAccountTab() {
           if (canSubmit) e.currentTarget.style.backgroundColor = "#0E2A47";
         }}
       >
-        Create Account
+        {isSubmitting ? "Creating account..." : "Create Account"}
       </button>
 
       <p

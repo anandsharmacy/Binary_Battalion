@@ -8,7 +8,7 @@ import GlassFilters from './auth/GlassFilters';
 import Shell from '@/components/Shell';
 import type { Role } from '@/roles';
 import { profileService } from '@/lib/profileService';
-import { restoreSession, signIn, signOut, type SessionSource } from '@/lib/auth';
+import { restoreSession, signIn, signOut, watchSessionEnd, type SessionSource } from '@/lib/auth';
 import Dashboard from '@/pages/Dashboard';
 import DistrictMap from '@/pages/DistrictMap';
 import Incidents from '@/pages/Incidents';
@@ -36,31 +36,6 @@ const DEFAULT_PAGE: Record<Role, string> = {
   field: 'fo-dashboard',
 };
 
-function roleFromIdentity(identity: string): Role | null {
-  const value = identity.trim().toLowerCase();
-  if (!value) return null;
-
-  if (value.includes('field') || value.includes('field officer') || value.includes('fo-') || value.includes('fo@') || /^fo\d+/.test(value) || /ravi|kumar|nagaland/.test(value)) {
-    return 'field';
-  }
-
-  if (value.includes('control') || value.includes('control officer') || value.includes('control room') || value.includes('co-') || value.includes('co@') || /^co\d+/.test(value) || /anjali|rao/.test(value)) {
-    return 'control';
-  }
-
-  if (value.includes('district') || value.includes('district officer') || value.includes('do-') || value.includes('do@') || /^do\d+/.test(value) || /dinesh|joshi|assam/.test(value)) {
-    return 'district';
-  }
-
-  const savedProfile = profileService.getProfile();
-  const label = savedProfile?.label?.toLowerCase() ?? '';
-  if (label.includes('field')) return 'field';
-  if (label.includes('control')) return 'control';
-  if (label.includes('district')) return 'district';
-
-  return null;
-}
-
 function roleFromPath(pathname: string): Role | null {
   if (pathname.endsWith('/field')) return 'field';
   if (pathname.endsWith('/control')) return 'control';
@@ -75,7 +50,8 @@ function dashboardPath(role: Role) {
 function screenFromPath(pathname: string): Screen {
   if (pathname === '/login') return 'login';
   if (pathname === '/create-account') return 'create';
-  // Dashboard routes are handled by the session state, not screen state
+  // A dashboard URL renders only with a verified session; without one it means "log in".
+  if (pathname.startsWith('/dashboard/')) return 'login';
   return 'splash';
 }
 
@@ -97,7 +73,7 @@ export default function App() {
         setSession(restored?.role ?? null);
         if (restored) setSource(restored.source);
         if (!restored && window.location.pathname.startsWith('/dashboard/')) {
-          window.history.replaceState({}, '', '/');
+          window.history.replaceState({}, '', '/login');
         }
       })
       .catch((error) => {
@@ -111,6 +87,17 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Supabase is the source of truth: if its session ends (other tab, revoked token), leave the dashboard.
+  useEffect(() => {
+    if (!session) return;
+    return watchSessionEnd(() => {
+      profileService.clearSession();
+      setSession(null);
+      window.history.replaceState({}, '', '/login');
+      setScreen('login');
+    });
+  }, [session]);
 
   useEffect(() => {
     const handlePopState = () => {
