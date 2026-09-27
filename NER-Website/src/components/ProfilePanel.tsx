@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import Modal from '@/components/Modal';
+import { XIcon, EyeIcon, EyeOffIcon, Icon } from '@/auth/Icons';
 import { profileService, type ProfileMeta } from '@/lib/profileService';
-import { useTheme, type ThemeMode } from '@/lib/theme';
 import { LANGUAGES, useLanguage, type LanguageCode } from '@/lib/i18n';
 
 export type { ProfileMeta };
@@ -13,28 +14,31 @@ const SURFACE_2 = 'rgba(233,238,241,0.85)';
 
 // ─── tiny helpers ─────────────────────────────────────────────────────────────
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+// Padding around the 38×22 track gives a 44×28 hit area (60×44 on touch).
+function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <button onClick={() => onChange(!on)} aria-pressed={on}
-      className="relative rounded-full transition-colors flex-shrink-0"
-      style={{ width: 38, height: 22, background: on ? TEAL : 'rgba(120,140,160,0.4)' }}>
-      <span className="absolute top-0.5 rounded-full bg-white shadow transition-all"
-        style={{ width: 18, height: 18, left: on ? 18 : 2 }} />
+    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
+      className="flex-shrink-0 rounded-full p-[3px] pointer-coarse:p-[11px]">
+      <span className="relative block rounded-full transition-colors"
+        style={{ width: 38, height: 22, background: on ? TEAL : 'rgba(120,140,160,0.4)' }}>
+        <span className="absolute top-0.5 rounded-full bg-white shadow transition-all"
+          style={{ width: 18, height: 18, left: on ? 18 : 2 }} />
+      </span>
     </button>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <div className="text-xs font-medium mb-1" style={{ color: '#637480' }}>{children}</div>;
+function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+  return <label htmlFor={htmlFor} className="block text-xs font-medium mb-1" style={{ color: '#637480' }}>{children}</label>;
 }
 
-function Input({ value, onChange, type = 'text', placeholder = '' }: {
-  value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
+function Input({ id, value, onChange, type = 'text', placeholder = '' }: {
+  id: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
 }) {
   return (
-    <input type={type} value={value} placeholder={placeholder}
+    <input id={id} type={type} value={value} placeholder={placeholder}
       onChange={e => onChange(e.target.value)}
-      className="w-full rounded-lg border px-3 py-2 text-sm outline-none transition-all"
+      className="w-full rounded-lg border px-3 py-2 text-sm transition-all"
       style={{
         borderColor: BORDER, color: '#16222E', background: 'rgba(255,255,255,0.8)',
         boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)',
@@ -45,21 +49,22 @@ function Input({ value, onChange, type = 'text', placeholder = '' }: {
   );
 }
 
-function PasswordInput({ value, onChange, placeholder = '' }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+function PasswordInput({ id, value, onChange, placeholder = '' }: { id: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
-      <input type={show ? 'text' : 'password'} value={value} placeholder={placeholder}
+      <input id={id} type={show ? 'text' : 'password'} value={value} placeholder={placeholder}
         onChange={e => onChange(e.target.value)}
-        className="w-full rounded-lg border px-3 py-2 pr-9 text-sm outline-none transition-all"
+        className="w-full rounded-lg border px-3 py-2 pr-9 text-sm transition-all"
         style={{ borderColor: BORDER, color: '#16222E', background: 'rgba(255,255,255,0.8)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)' }}
         onFocus={e => (e.currentTarget.style.borderColor = TEAL)}
         onBlur={e => (e.currentTarget.style.borderColor = BORDER)}
       />
       <button type="button" onClick={() => setShow(s => !s)}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs transition-colors"
-        style={{ color: show ? TEAL : '#9AAAB5' }}>
-        {show ? '◉' : '◎'}
+        aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 flex transition-colors"
+        style={{ color: show ? TEAL : '#5C6670' }}>
+        {show ? <EyeOffIcon /> : <EyeIcon />}
       </button>
     </div>
   );
@@ -97,13 +102,13 @@ function SectionCard({ children }: { children: React.ReactNode }) {
 
 function SectionHeader({ icon, title, expanded, onToggle }: { icon: string; title: string; expanded: boolean; onToggle: () => void }) {
   return (
-    <button onClick={onToggle}
+    <button type="button" onClick={onToggle} aria-expanded={expanded}
       className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-black/[0.03]"
       style={{ borderBottom: expanded ? `1px solid ${BORDER}` : 'none' }}>
-      <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
+      <span aria-hidden="true" className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
         style={{ background: SURFACE_2, color: NAVY }}>{icon}</span>
       <span className="flex-1 text-sm font-semibold" style={{ color: NAVY }}>{title}</span>
-      <span className="text-sm transition-transform" style={{ color: '#B0B8C0', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
+      <span aria-hidden="true" className="text-sm transition-transform" style={{ color: '#B0B8C0', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
     </button>
   );
 }
@@ -245,7 +250,7 @@ function EditProfileSection({ meta, onSave }: { meta: ProfileMeta; onSave: (upda
         </div>
         <div>
           <div className="text-sm font-semibold" style={{ color: NAVY }}>{form.name}</div>
-          <div className="text-xs" style={{ color: '#8A9098' }}>{meta.label}</div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{meta.label}</div>
           <button onClick={() => fileRef.current?.click()}
             className="text-xs mt-1 underline transition-colors"
             style={{ color: TEAL }}>
@@ -257,20 +262,20 @@ function EditProfileSection({ meta, onSave }: { meta: ProfileMeta; onSave: (upda
       {/* Fields */}
       <div className="space-y-3">
         <div>
-          <Label>{t('Full Name')}</Label>
-          <Input value={form.name} onChange={v => setForm(s => ({ ...s, name: v }))} placeholder="Full name" />
+          <Label htmlFor="pp-name">{t('Full Name')}</Label>
+          <Input id="pp-name" value={form.name} onChange={v => setForm(s => ({ ...s, name: v }))} placeholder="Full name" />
         </div>
         <div>
-          <Label>{t('Phone')}</Label>
-          <Input value={form.phone} onChange={v => setForm(s => ({ ...s, phone: v }))} placeholder="+91 …" />
+          <Label htmlFor="pp-phone">{t('Phone')}</Label>
+          <Input id="pp-phone" value={form.phone} onChange={v => setForm(s => ({ ...s, phone: v }))} placeholder="+91 …" />
         </div>
         <div>
-          <Label>{t('Email')}</Label>
-          <Input value={form.email} onChange={v => setForm(s => ({ ...s, email: v }))} type="email" placeholder="name@gov.in" />
+          <Label htmlFor="pp-email">{t('Email')}</Label>
+          <Input id="pp-email" value={form.email} onChange={v => setForm(s => ({ ...s, email: v }))} type="email" placeholder="name@gov.in" />
         </div>
         {meta.label !== 'Control Officer' && <div>
-          <Label>{t('District / Region')}</Label>
-          <Input value={form.region} onChange={v => setForm(s => ({ ...s, region: v }))} />
+          <Label htmlFor="pp-region">{t('District / Region')}</Label>
+          <Input id="pp-region" value={form.region} onChange={v => setForm(s => ({ ...s, region: v }))} />
         </div>}
       </div>
 
@@ -340,26 +345,26 @@ function SecuritySection() {
       <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: SURFACE_2 }}>
         <div>
           <div className="text-sm font-semibold" style={{ color: NAVY }}>Two-Factor Authentication</div>
-          <div className="text-xs" style={{ color: '#8A9098' }}>OTP via registered mobile</div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>OTP via registered mobile</div>
         </div>
-        <Toggle on={twoFA} onChange={setTwoFA} />
+        <Toggle on={twoFA} onChange={setTwoFA} label="Two-Factor Authentication" />
       </div>
 
       {/* Change Password */}
       <div className="space-y-3">
         <div className="text-sm font-semibold" style={{ color: NAVY }}>Change Password</div>
         <div>
-          <Label>Current Password</Label>
-          <PasswordInput value={cur} onChange={setCur} placeholder="Current password" />
+          <Label htmlFor="pp-cur">Current Password</Label>
+          <PasswordInput id="pp-cur" value={cur} onChange={setCur} placeholder="Current password" />
         </div>
         <div>
-          <Label>New Password</Label>
-          <PasswordInput value={next} onChange={setNext} placeholder="Min. 8 characters" />
+          <Label htmlFor="pp-new">New Password</Label>
+          <PasswordInput id="pp-new" value={next} onChange={setNext} placeholder="Min. 8 characters" />
           <PasswordStrength pwd={next} />
         </div>
         <div>
-          <Label>Confirm New Password</Label>
-          <PasswordInput value={confirm} onChange={setConfirm} placeholder="Repeat new password" />
+          <Label htmlFor="pp-confirm">Confirm New Password</Label>
+          <PasswordInput id="pp-confirm" value={confirm} onChange={setConfirm} placeholder="Repeat new password" />
         </div>
         {error && <ErrorBanner msg={error} />}
         {success && <SuccessBanner msg={success} />}
@@ -391,19 +396,19 @@ function SecuritySection() {
           {sessions.map((s, i) => (
             <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
               style={{ background: s.current ? 'rgba(47,111,126,0.08)' : SURFACE_2, border: s.current ? `1px solid rgba(47,111,126,0.25)` : `1px solid ${BORDER}` }}>
-              <span className="text-sm flex-shrink-0" style={{ color: s.current ? TEAL : '#8A9098' }}>
-                {s.device.includes('Mobile') ? '📱' : '💻'}
+              <span className="text-sm flex-shrink-0" style={{ color: s.current ? TEAL : 'var(--text-muted)' }}>
+                <Icon name={s.device.includes('Mobile') ? 'mobile' : 'desktop'} />
               </span>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium truncate" style={{ color: '#16222E' }}>{s.device}</div>
-                <div className="text-xs" style={{ color: '#8A9098' }}>{s.location} · {s.time}</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.location} · {s.time}</div>
               </div>
               {s.current && <span className="text-xs px-1.5 py-0.5 rounded-full"
                 style={{ background: 'rgba(47,111,126,0.12)', color: TEAL }}>Current</span>}
             </div>
           ))}
           {sessions.length === 1 && (
-            <div className="text-xs text-center py-1" style={{ color: '#8A9098' }}>No other active sessions.</div>
+            <div className="text-xs text-center py-1" style={{ color: 'var(--text-muted)' }}>No other active sessions.</div>
           )}
         </div>
       </div>
@@ -445,9 +450,9 @@ function NotificationsSection() {
               style={{ background: SURFACE_2, color: NAVY }}>{r.icon}</span>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium" style={{ color: '#16222E' }}>{r.label}</div>
-              <div className="text-xs" style={{ color: '#8A9098' }}>{r.sub}</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.sub}</div>
             </div>
-            <Toggle on={n[r.key]} onChange={v => setN(s => ({ ...s, [r.key]: v }))} />
+            <Toggle on={n[r.key]} onChange={v => setN(s => ({ ...s, [r.key]: v }))} label={r.label} />
           </div>
         ))}
       </div>
@@ -457,46 +462,6 @@ function NotificationsSection() {
         style={{ background: NAVY, color: 'white' }}>
         Save Preferences
       </button>
-    </div>
-  );
-}
-
-// ─── appearance section ───────────────────────────────────────────────────────
-
-function AppearanceSection() {
-  const { t } = useLanguage();
-  const { theme, setTheme } = useTheme();
-  const [applied, setApplied] = useState<ThemeMode | null>(null);
-
-  const apply = (mode: ThemeMode) => {
-    setTheme(mode);
-    setApplied(mode);
-    setTimeout(() => setApplied(null), 2000);
-  };
-
-  const options: { key: ThemeMode; icon: string; desc: string }[] = [
-    { key: 'light', icon: '☀', desc: 'Default platform theme' },
-    { key: 'dark', icon: '◑', desc: 'Reduced eye strain at night' },
-    { key: 'system', icon: '⊙', desc: 'Follows OS preference' },
-  ];
-
-  return (
-    <div className="p-4 space-y-3">
-      <div className="grid grid-cols-3 gap-2">
-        {options.map(o => {
-          const active = theme === o.key;
-          return (
-            <button key={o.key} onClick={() => apply(o.key)}
-              className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all"
-              style={{ borderColor: active ? GOLD : 'rgba(120,140,160,0.2)', background: active ? 'rgba(215,167,58,0.07)' : 'rgba(255,255,255,0.5)' }}>
-              <span className="text-xl">{o.icon}</span>
-              <div className="text-xs font-semibold capitalize" style={{ color: active ? NAVY : '#5A6670' }}>{t(o.key === 'light' ? 'Light' : o.key === 'dark' ? 'Dark' : 'System')}</div>
-              <div className="text-xs text-center leading-tight" style={{ color: '#8A9098', fontSize: 10 }}>{t(o.desc)}</div>
-            </button>
-          );
-        })}
-      </div>
-      {applied && <SuccessBanner msg={`${applied === 'light' ? t('Light') : applied === 'dark' ? t('Dark') : t('System')} theme applied.`} />}
     </div>
   );
 }
@@ -545,7 +510,7 @@ function Row({ icon, label, value }: { icon: string; label: string; value: strin
       <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
         style={{ background: SURFACE_2, color: TEAL }}>{icon}</span>
       <div className="min-w-0">
-        <div className="text-xs" style={{ color: '#8A9098' }}>{label}</div>
+        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
         <div className="text-sm font-medium break-words" style={{ color: '#16222E' }}>{value}</div>
       </div>
     </div>
@@ -559,13 +524,6 @@ export default function ProfilePanel({ open, onClose, meta, onSave }: { open: bo
   const [tab, setTab] = useState<'profile' | 'settings'>('profile');
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
   // Reset expanded section when switching tabs or closing
   useEffect(() => { if (!open) setExpanded(null); }, [open]);
 
@@ -577,30 +535,22 @@ export default function ProfilePanel({ open, onClose, meta, onSave }: { open: bo
   const SETTINGS_SECTIONS = [
     { key: 'edit', icon: '✎', title: t('Edit Profile'), content: <EditProfileSection meta={meta} onSave={onSave} /> },
     { key: 'notif', icon: '◬', title: t('Notifications'), content: <NotificationsSection /> },
-    { key: 'appearance', icon: '◐', title: t('Theme & Appearance'), content: <AppearanceSection /> },
     { key: 'language', icon: '⚑', title: t('Language'), content: <LanguageSection /> },
     { key: 'security', icon: '⛨', title: t('Security & Password'), content: <SecuritySection /> },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
-      <div className="absolute inset-0 transition-opacity" style={{ background: 'rgba(16,30,44,0.42)' }} onClick={onClose} />
-
-      {/* Panel */}
-      <div className="ui-panel relative h-full w-full max-w-md flex flex-col shadow-2xl"
+    <Modal open={open} onClose={onClose} labelledBy="account-title" side="right">
+      <div className="ui-panel relative h-full w-[28rem] max-w-full flex flex-col shadow-2xl"
         style={{ background: 'rgba(247,249,251,0.98)', backdropFilter: 'blur(14px)', borderLeft: `1px solid ${BORDER}` }}>
 
         {/* Header banner */}
-        <div className="relative px-5 pt-5 pb-6 flex-shrink-0"
+        <div data-surface="dark" className="relative px-5 pt-5 pb-6 flex-shrink-0"
           style={{ background: `linear-gradient(135deg, ${NAVY} 0%, #1E4A63 60%, ${TEAL} 130%)` }}>
           <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-widest" style={{ color: 'rgba(215,231,242,0.75)', fontSize: 10 }}>{t('Account')}</span>
-            <button onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-              style={{ color: 'white', background: 'rgba(255,255,255,0.12)' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.24)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)')}>✕</button>
+            <span id="account-title" className="text-xs uppercase tracking-widest" style={{ color: 'rgba(215,231,242,0.85)', fontSize: 11 }}>{t('Account')}</span>
+            <button type="button" onClick={onClose} aria-label={t('Close account panel')}
+              className="ui-press w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 rounded-full flex items-center justify-center text-white bg-white/12 hover:bg-white/24 focus-visible:bg-white/24"><XIcon size={16} /></button>
           </div>
           <div className="flex items-center gap-4 mt-3">
             {meta.avatarUrl ? (
@@ -625,13 +575,20 @@ export default function ProfilePanel({ open, onClose, meta, onSave }: { open: bo
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 px-4 pt-3 border-b flex-shrink-0" style={{ borderColor: BORDER }}>
+        <div role="tablist" aria-label={t('Account')} className="flex gap-1 px-4 pt-3 border-b flex-shrink-0" style={{ borderColor: BORDER }}
+          onKeyDown={e => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            const next = tab === 'profile' ? 'settings' : 'profile';
+            setTab(next);
+            document.getElementById(`pp-tab-${next}`)?.focus();
+          }}>
           {(['profile', 'settings'] as const).map(tabKey => {
             const active = tab === tabKey;
             return (
-              <button key={tabKey} onClick={() => setTab(tabKey)}
+              <button key={tabKey} type="button" role="tab" id={`pp-tab-${tabKey}`} aria-selected={active}
+                aria-controls="pp-tabpanel" tabIndex={active ? 0 : -1} onClick={() => setTab(tabKey)}
                 className="px-4 py-2 text-sm font-medium capitalize transition-all"
-                style={{ color: active ? NAVY : '#8A9098', borderBottom: `2px solid ${active ? GOLD : 'transparent'}`, marginBottom: -1 }}>
+                style={{ color: active ? NAVY : 'var(--text-muted)', borderBottom: `2px solid ${active ? GOLD : 'transparent'}`, marginBottom: -1 }}>
                 {t(tabKey === 'profile' ? 'Profile' : 'Settings')}
               </button>
             );
@@ -639,7 +596,7 @@ export default function ProfilePanel({ open, onClose, meta, onSave }: { open: bo
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div role="tabpanel" id="pp-tabpanel" aria-labelledby={`pp-tab-${tab}`} className="flex-1 overflow-y-auto">
           {tab === 'profile' ? (
             <div className="p-4 ui-stagger space-y-1">
               <Row icon="◎" label={t('Full Name')} value={meta.profileName} />
@@ -652,7 +609,7 @@ export default function ProfilePanel({ open, onClose, meta, onSave }: { open: bo
                 <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
                   style={{ background: SURFACE_2, color: TEAL }}>⊕</span>
                 <div className="min-w-0">
-                  <div className="text-xs" style={{ color: '#8A9098' }}>{t('Account Status')}</div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('Account Status')}</div>
                   <span className="inline-flex items-center gap-1.5 text-sm font-medium"
                     style={{ color: statusActive ? '#2D6B4F' : '#D7A73A' }}>
                     <span className="w-1.5 h-1.5 rounded-full inline-block"
@@ -678,6 +635,6 @@ export default function ProfilePanel({ open, onClose, meta, onSave }: { open: bo
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

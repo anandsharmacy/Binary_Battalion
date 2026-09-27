@@ -224,7 +224,7 @@ export default function DistrictMap({ role }: { role?: Role }) {
                     }}>
                     <span className="font-medium">{r.id}</span>
                     <span className="ml-2" style={{
-                      color: !status ? '#8A9098' : status === 'Open' ? '#2D6B4F' : status === 'Restricted' ? '#C4861A' : '#BE2424'
+                      color: !status ? 'var(--text-muted)' : status === 'Open' ? '#2D6B4F' : status === 'Restricted' ? '#C4861A' : '#BE2424'
                     }}>● {status ?? 'No status'}</span>
                   </button>
                 );
@@ -269,7 +269,7 @@ export default function DistrictMap({ role }: { role?: Role }) {
                   { label: 'ETA', value: route.eta },
                 ].map(item => (
                   <div key={item.label} className="rounded p-2" style={{ background: 'rgba(238,228,210,0.88)' }}>
-                    <div className="text-xs mb-0.5" style={{ color: '#8A9098' }}>{item.label}</div>
+                    <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>{item.label}</div>
                     <div className="text-xs font-semibold" style={{ color: '#17212B' }}>
                       {typeof item.value === 'string' ? item.value : item.value}
                     </div>

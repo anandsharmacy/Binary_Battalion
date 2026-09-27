@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import EmptyState from '@/components/EmptyState';
+import { Icon } from '@/auth/Icons';
 import { SeverityBadge } from '@/components/StatusBadge';
 import { getIncidents, subscribeToIncidents, updateIncident } from '@/lib/incidentStore';
 import { getTasks, subscribeToTasks, updateTask } from '@/lib/taskStore';
@@ -146,8 +148,8 @@ export default function Alerts() {
           return (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="px-4 py-2 text-sm font-medium whitespace-nowrap transition-all"
-              style={{ color: active ? '#17212B' : '#8A9098', borderBottom: `2px solid ${active ? TEAL : 'transparent'}`, marginBottom: -1 }}>
-              {t.key} <span className="text-xs" style={{ color: '#8A9098' }}>({n})</span>
+              style={{ color: active ? '#17212B' : 'var(--text-muted)', borderBottom: `2px solid ${active ? TEAL : 'transparent'}`, marginBottom: -1 }}>
+              {t.key} <span className="text-xs" style={{ color: 'var(--text-muted)' }}>({n})</span>
             </button>
           );
         })}
@@ -163,7 +165,7 @@ export default function Alerts() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <SeverityBadge severity={a.severity} />
-                    <span className="text-xs" style={{ color: '#8A9098' }}>{a.category} · {a.time}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{a.category} · {a.time}</span>
                   </div>
                   <h3 className="font-semibold text-sm mb-1" style={{ color: '#17212B' }}>{a.title}</h3>
                   <div className="text-xs mb-2" style={{ color: '#5A6670' }}>{a.location} · {a.description}</div>
@@ -194,7 +196,7 @@ export default function Alerts() {
           );
         })}
         {list.length === 0 && (
-          <Card className="p-10 text-center"><span className="text-sm" style={{ color: '#8A9098' }}>No {tab.toLowerCase()} alerts.</span></Card>
+          <Card><EmptyState icon={<Icon name="alert" size={22} />} title={`No ${tab.toLowerCase()} alerts`} message="Alerts for your assigned area will appear here." /></Card>
         )}
       </div>
     </div>

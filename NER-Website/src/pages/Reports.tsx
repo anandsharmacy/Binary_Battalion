@@ -177,8 +177,8 @@ export default function Reports() {
           <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Report Configuration</h2>
 
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Report Type</label>
-            <select value={reportType} onChange={e => { setReportType(e.target.value); setGenerated(false); }}
+            <label htmlFor="rp-type" className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Report Type</label>
+            <select id="rp-type" value={reportType} onChange={e => { setReportType(e.target.value); setGenerated(false); }}
               className="w-full text-sm px-3 py-2 rounded border"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)', color: '#17212B' }}>
               {reportTypes.map(r => <option key={r}>{r}</option>)}
@@ -186,22 +186,22 @@ export default function Reports() {
           </div>
 
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Date</label>
-            <input type="date" value={reportDate} onChange={e => { setReportDate(e.target.value); setGenerated(false); }}
+            <label htmlFor="rp-date" className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Date</label>
+            <input id="rp-date" type="date" value={reportDate} onChange={e => { setReportDate(e.target.value); setGenerated(false); }}
               className="w-full text-sm px-3 py-2 rounded border"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)', color: '#17212B' }} />
           </div>
 
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>District</label>
-            <input value={district} onChange={e => { setDistrict(e.target.value); setGenerated(false); }}
+            <label htmlFor="rp-district" className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>District</label>
+            <input id="rp-district" value={district} onChange={e => { setDistrict(e.target.value); setGenerated(false); }}
               className="w-full text-sm px-3 py-2 rounded border"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)', color: '#17212B' }} />
           </div>
 
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Incident Type</label>
-            <select value={incidentType} onChange={e => { setIncidentType(e.target.value); setGenerated(false); }}
+            <label htmlFor="rp-inc-type" className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Incident Type</label>
+            <select id="rp-inc-type" value={incidentType} onChange={e => { setIncidentType(e.target.value); setGenerated(false); }}
               className="w-full text-sm px-3 py-2 rounded border"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)', color: '#17212B' }}>
               <option>All Types</option>
@@ -215,8 +215,8 @@ export default function Reports() {
           </div>
 
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Severity Filter</label>
-            <select value={severityFilter} onChange={e => { setSeverityFilter(e.target.value); setGenerated(false); }}
+            <label htmlFor="rp-severity" className="text-xs font-medium block mb-1" style={{ color: '#5A6670' }}>Severity Filter</label>
+            <select id="rp-severity" value={severityFilter} onChange={e => { setSeverityFilter(e.target.value); setGenerated(false); }}
               className="w-full text-sm px-3 py-2 rounded border"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)', color: '#17212B' }}>
               <option>All Severity Levels</option>
@@ -260,9 +260,9 @@ export default function Reports() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>{reportType}</h2>
-                    <p className="text-xs" style={{ color: '#8A9098' }}>{today}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{today}</p>
                   </div>
-                  <div className="text-xs px-2 py-1 rounded border" style={{ borderColor: 'rgba(180,162,136,0.55)', color: '#8A9098' }}>
+                  <div className="text-xs px-2 py-1 rounded border" style={{ borderColor: 'rgba(180,162,136,0.55)', color: 'var(--text-muted)' }}>
                     DRAFT
                   </div>
                 </div>
@@ -298,7 +298,7 @@ export default function Reports() {
                           {item}
                         </div>
                       )) : (
-                        <div className="rounded p-2 text-xs" style={{ background: 'rgba(238,228,210,0.88)', color: '#8A9098' }}>
+                        <div className="rounded p-2 text-xs" style={{ background: 'rgba(238,228,210,0.88)', color: 'var(--text-muted)' }}>
                           No matching data available for this filter.
                         </div>
                       )}
@@ -314,13 +314,13 @@ export default function Reports() {
                     style={{ background: 'rgba(238,228,210,0.88)', borderColor: 'rgba(180,162,136,0.55)', color: '#17212B' }} />
                 </div>
 
-                <div className="text-xs text-center pt-4 border-t" style={{ borderColor: 'rgba(180,162,136,0.55)', color: '#8A9098' }}>
+                <div className="text-xs text-center pt-4 border-t" style={{ borderColor: 'rgba(180,162,136,0.55)', color: 'var(--text-muted)' }}>
                   Ministry of Development of North Eastern Region · Government of India
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-80" style={{ color: '#8A9098' }}>
+            <div className="flex flex-col items-center justify-center h-80" style={{ color: 'var(--text-muted)' }}>
               <div className="text-4xl mb-3">⊟</div>
               <div className="text-sm font-medium" style={{ color: '#5A6670' }}>Configure and generate a report</div>
               <div className="text-xs mt-1">Select report type and parameters on the left</div>

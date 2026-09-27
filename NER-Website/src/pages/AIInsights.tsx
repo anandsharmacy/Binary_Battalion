@@ -1,5 +1,5 @@
 import { aiInsights } from '@/data/demo';
-import { MlNotice, MlRouteSummary, MlTopAlertsPanel } from '@/components/MlRisk';
+import { LoadingRows, MlNotice, MlRouteSummary, MlTopAlertsPanel } from '@/components/MlRisk';
 import { fetchRoutesSummary, useMlQuery } from '@/lib/ml';
 import { profileService } from '@/lib/profileService';
 import { SeverityBadge } from '@/components/StatusBadge';
@@ -44,7 +44,7 @@ export default function AIInsights() {
         <div className="rounded-xl border shadow-sm lg:col-span-2" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
           <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Road Disruption Risk</h2>
-            <p className="text-xs" style={{ color: '#8A9098' }}>Model output · rainfall-triggered landslide and flood risk per road segment</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Model output · rainfall-triggered landslide and flood risk per road segment</p>
           </div>
           <div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-6">
             <section className="space-y-2">
@@ -55,7 +55,7 @@ export default function AIInsights() {
               <h3 className="text-sm font-semibold" style={{ color: '#17212B' }}>Risk on planned routes</h3>
               <MlNotice signedOut={routes.signedOut} error={routes.error} />
               {routes.loading && !routes.data && !routes.signedOut && (
-                <div className="text-xs" style={{ color: '#8A9098' }}>Loading routes…</div>
+                <LoadingRows label="Loading routes…" />
               )}
               <div className="space-y-3">
                 {(routes.data?.routes ?? []).map((r) => (
@@ -73,7 +73,7 @@ export default function AIInsights() {
         <div className="rounded-xl border shadow-sm" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
           <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Logistics Delay Predictions</h2>
-            <p className="text-xs" style={{ color: '#8A9098' }}>Demo data · not model output</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Demo data · not model output</p>
           </div>
           <div className="p-4 space-y-3">
             <div className="rounded p-3 border" style={{ background: '#FEF8E6', borderColor: '#F5DFA8' }}>
@@ -83,7 +83,7 @@ export default function AIInsights() {
                   {aiInsights.logisticsPredictions.reduce((a, b) => a + b.convoys, 0)} logistics routes may experience delays
                 </span>
               </div>
-              <p className="text-xs" style={{ color: '#8A9098' }}>Based on current incident data and weather forecasts</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Based on current incident data and weather forecasts</p>
             </div>
             {aiInsights.logisticsPredictions.map(p => (
               <div key={p.route} className="rounded-lg border p-3" style={{ borderColor: 'rgba(180,162,136,0.55)' }}>
@@ -94,9 +94,9 @@ export default function AIInsights() {
                   </span>
                 </div>
                 <div className="grid grid-cols-2 text-xs gap-1">
-                  <div style={{ color: '#8A9098' }}>Affected convoys: <span style={{ color: '#17212B' }} className="font-medium">{p.convoys}</span></div>
-                  <div style={{ color: '#8A9098' }}>Est. delay: <span style={{ color: '#C25A1A' }} className="font-semibold">{p.estimatedDelay}</span></div>
-                  <div className="col-span-2" style={{ color: '#8A9098' }}>Cause: <span style={{ color: '#17212B' }}>{p.cause}</span></div>
+                  <div style={{ color: 'var(--text-muted)' }}>Affected convoys: <span style={{ color: '#17212B' }} className="font-medium">{p.convoys}</span></div>
+                  <div style={{ color: 'var(--text-muted)' }}>Est. delay: <span style={{ color: '#C25A1A' }} className="font-semibold">{p.estimatedDelay}</span></div>
+                  <div className="col-span-2" style={{ color: 'var(--text-muted)' }}>Cause: <span style={{ color: '#17212B' }}>{p.cause}</span></div>
                 </div>
               </div>
             ))}
@@ -107,7 +107,7 @@ export default function AIInsights() {
         <div className="rounded-xl border shadow-sm" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
           <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Route Recommendations</h2>
-            <p className="text-xs" style={{ color: '#8A9098' }}>Demo data · not model output</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Demo data · not model output</p>
           </div>
           <div className="p-4 space-y-3">
             {aiInsights.routeRecommendations.map((rec, i) => (
@@ -122,8 +122,8 @@ export default function AIInsights() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 text-xs gap-1">
-                  <div style={{ color: '#8A9098' }}>Benefit: <span style={{ color: '#2D6B4F' }}>{rec.savings}</span></div>
-                  <div style={{ color: '#8A9098' }}>Add. distance: <span style={{ color: '#17212B' }}>{rec.additionalDistance}</span></div>
+                  <div style={{ color: 'var(--text-muted)' }}>Benefit: <span style={{ color: '#2D6B4F' }}>{rec.savings}</span></div>
+                  <div style={{ color: 'var(--text-muted)' }}>Add. distance: <span style={{ color: '#17212B' }}>{rec.additionalDistance}</span></div>
                 </div>
               </div>
             ))}
@@ -134,7 +134,7 @@ export default function AIInsights() {
         <div className="rounded-xl border shadow-sm" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
           <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Resource Recommendations</h2>
-            <p className="text-xs" style={{ color: '#8A9098' }}>Demo data · not model output</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Demo data · not model output</p>
           </div>
           <div className="p-4 space-y-3">
             {aiInsights.resourceRecommendations.map((rec, i) => (

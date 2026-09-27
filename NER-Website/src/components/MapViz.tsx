@@ -569,7 +569,7 @@ export default function MapViz({
           style={{ background: 'rgba(250,247,240,0.92)', border: '1px solid rgba(200,186,164,0.6)', minWidth: 148, backdropFilter: 'blur(4px)' }}>
           <button type="button" onClick={() => setLegendOpen(open => !open)} aria-expanded={legendOpen}
             className="w-full flex items-center justify-between gap-3 px-2.5 py-1.5 font-semibold uppercase tracking-wider"
-            style={{ color: '#8A9098', fontSize: 10 }}>
+            style={{ color: 'var(--text-muted)', fontSize: 11 }}>
             Legend <span aria-hidden>{legendOpen ? '▾' : '▸'}</span>
           </button>
           {legendOpen && (

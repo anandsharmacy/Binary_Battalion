@@ -73,7 +73,7 @@ const SECTIONS = [
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
           {INFO.map(([k, v]) => (
             <div key={k} className="flex justify-between py-2.5 border-b text-sm" style={{ borderColor: SURFACE_2 }}>
-              <span className="text-xs font-medium" style={{ color: '#8A9098' }}>{k}</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{k}</span>
               <span className="text-right" style={{ color: '#17212B' }}>{v}</span>
             </div>
           ))}
@@ -88,9 +88,9 @@ const SECTIONS = [
               <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: SURFACE_2, color: NAVY }}>{s.icon}</div>
               <div className="flex-1">
                 <div className="text-sm font-medium" style={{ color: '#17212B' }}>{s.title}</div>
-                <div className="text-xs" style={{ color: '#8A9098' }}>{s.sub}</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.sub}</div>
               </div>
-              <span style={{ color: '#8A9098' }}>›</span>
+              <span style={{ color: 'var(--text-muted)' }}>›</span>
             </button>
           ))}
           <button className="w-full px-4 py-3 flex items-center gap-3 text-left transition-colors hover:bg-red-50" style={{ minHeight: 44 }}>

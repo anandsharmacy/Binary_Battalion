@@ -10,6 +10,12 @@ function systemTheme(): ResolvedTheme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+// ponytail: pinned light until pages use tokens (only the canvas has dark styles,
+// so dark rendered half-dark). Restore `t === 'system' ? systemTheme() : t` with W-03.
+function resolve(_t: ThemeMode): ResolvedTheme {
+  return 'light';
+}
+
 function loadTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'system';
   try {
@@ -39,13 +45,11 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>(() => loadTheme());
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
-    theme === 'system' ? systemTheme() : theme,
-  );
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolve(theme));
 
   // Apply + persist whenever the mode changes, so it takes effect immediately.
   useEffect(() => {
-    const resolved = theme === 'system' ? systemTheme() : theme;
+    const resolved = resolve(theme);
     setResolvedTheme(resolved);
     applyTheme(resolved);
     try {
@@ -60,7 +64,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (theme !== 'system' || typeof window === 'undefined') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
-      const resolved = systemTheme();
+      const resolved = resolve(theme);
       setResolvedTheme(resolved);
       applyTheme(resolved);
     };

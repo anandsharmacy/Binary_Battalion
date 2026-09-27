@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { notify } from '@/lib/notify';
 import {
   BAND_LABEL, TIER_LABEL, fetchRoutesSummary, fetchTopAlerts, formatMlDate, promoteMlAlert, stateLabel, topShare, useMlQuery,
   type MlBand, type MlMeta, type MlTier, type RouteRiskSummary, type TopAlertRow,
@@ -26,7 +27,7 @@ function Pill({ tone, children, title }: { tone: keyof typeof TONE; children: Re
 
 export function MlSourceTag({ version }: { version?: string }) {
   return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide whitespace-nowrap"
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold tracking-wide whitespace-nowrap"
       style={{ background: '#17324D', color: '#FAF7F0', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
       ML · {version ?? 'model'}
     </span>
@@ -71,6 +72,16 @@ export function MlPercentileBar({ percentile }: { percentile: number | null | un
   );
 }
 
+/** Skeleton placeholder while ML data loads (.ui-skeleton is reduced-motion safe). */
+export function LoadingRows({ label }: { label: string }) {
+  return (
+    <div role="status" className="space-y-2">
+      <span className="sr-only">{label}</span>
+      {[0, 1, 2].map(i => <div key={i} aria-hidden="true" className="ui-skeleton h-7" />)}
+    </div>
+  );
+}
+
 /** Empty / signed-out / unavailable / error states, in words people act on. */
 export function MlNotice({ signedOut, error, meta }: { signedOut?: boolean; error?: string | null; meta?: MlMeta | null }) {
   let text: string;
@@ -88,7 +99,7 @@ export function MlNotice({ signedOut, error, meta }: { signedOut?: boolean; erro
 export function MlCaveat({ meta }: { meta: MlMeta | null }) {
   if (!meta || meta.state === 'unavailable') return null;
   return (
-    <p className="text-[11px] leading-relaxed" style={{ color: '#8A9098' }}>
+    <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
       {meta.state === 'replay'
         ? `Replay of historical rainfall (${formatMlDate(meta.score_date)}) — not today's conditions. `
         : ''}
@@ -119,10 +130,10 @@ export function MlRouteSummary({ meta, summary, coverage, lengthM, showState = t
         </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-          <div><div style={{ color: '#8A9098' }}>Model covers</div><div className="font-semibold tabular-nums" style={{ color: '#17212B' }}>{pct}% of {lengthM ? `${Math.round(lengthM / 1000)} km` : 'route'}</div></div>
-          <div><div style={{ color: '#8A9098' }}>High-risk segments</div><div className="font-semibold tabular-nums" style={{ color: '#BE2424' }}>{summary.n_alert}</div></div>
-          <div><div style={{ color: '#8A9098' }}>Need review</div><div className="font-semibold tabular-nums" style={{ color: '#9A6412' }}>{summary.n_human_review}</div></div>
-          <div><div style={{ color: '#8A9098' }}>Riskiest segment</div><MlPercentileBar percentile={summary.max_percentile} /></div>
+          <div><div style={{ color: 'var(--text-muted)' }}>Model covers</div><div className="font-semibold tabular-nums" style={{ color: '#17212B' }}>{pct}% of {lengthM ? `${Math.round(lengthM / 1000)} km` : 'route'}</div></div>
+          <div><div style={{ color: 'var(--text-muted)' }}>High-risk segments</div><div className="font-semibold tabular-nums" style={{ color: '#BE2424' }}>{summary.n_alert}</div></div>
+          <div><div style={{ color: 'var(--text-muted)' }}>Need review</div><div className="font-semibold tabular-nums" style={{ color: '#9A6412' }}>{summary.n_human_review}</div></div>
+          <div><div style={{ color: 'var(--text-muted)' }}>Riskiest segment</div><MlPercentileBar percentile={summary.max_percentile} /></div>
         </div>
       )}
       {summary.worst && summary.band !== 'no_coverage' && summary.worst.along_m != null && (
@@ -151,7 +162,7 @@ export function MlTopAlertsPanel({ canPromote = false, compact = false }: { canP
     setMessage(null);
     try {
       await promoteMlAlert(row.segment_id, data?.run_id);
-      setMessage(`Alert created for ${row.segment_id}${row.near_place ? ` near ${row.near_place}` : ''}.`);
+      notify(`Alert created for ${row.segment_id}${row.near_place ? ` near ${row.near_place}` : ''}.`);
       q.reload();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
@@ -174,7 +185,7 @@ export function MlTopAlertsPanel({ canPromote = false, compact = false }: { canP
         )}
       </div>
       <MlNotice signedOut={q.signedOut} error={q.error} meta={data} />
-      {q.loading && !data && !q.signedOut && <div className="text-xs" style={{ color: '#8A9098' }}>Loading ML risk…</div>}
+      {q.loading && !data && !q.signedOut && <LoadingRows label="Loading ML risk…" />}
       {data && data.state !== 'unavailable' && rows.length === 0 && (
         <div className="text-xs rounded-lg border px-3 py-2" style={{ color: '#5A6670', borderColor: 'rgba(180,162,136,0.55)' }}>
           No high-risk ML segments in {data.scope === 'region' ? 'the region' : data.scope}. The model covers the Siliguri
@@ -194,17 +205,17 @@ export function MlTopAlertsPanel({ canPromote = false, compact = false }: { canP
               {row.promoted_alert_id ? (
                 <span className="text-xs font-semibold" style={{ color: '#2D6B4F' }}>✓ Alert raised</span>
               ) : canPromote ? (
-                <button type="button" disabled={busy === row.segment_id} onClick={() => promote(row)}
-                  className="text-xs font-semibold px-2 py-1 rounded border transition-colors"
+                <button type="button" disabled={busy === row.segment_id} aria-busy={busy === row.segment_id} onClick={() => promote(row)}
+                  className="ui-press inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded border"
                   style={{ borderColor: '#17324D', color: '#17324D', background: busy === row.segment_id ? 'rgba(23,50,77,0.08)' : 'transparent' }}>
-                  {busy === row.segment_id ? 'Raising…' : 'Raise alert'}
+                  {busy === row.segment_id ? <>Raising… <span aria-hidden="true" className="ui-spin">↻</span></> : 'Raise alert'}
                 </button>
               ) : null}
             </li>
           ))}
         </ul>
       )}
-      {message && <p className="text-xs" role="status" style={{ color: '#17324D' }}>{message}</p>}
+      {message && <p className="text-xs" role="alert" style={{ color: '#BE2424' }}>{message}</p>}
       <MlCaveat meta={data} />
     </div>
   );
@@ -220,13 +231,13 @@ export function MlRoutesBoard() {
         style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
         <div>
           <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Road Disruption Risk by Route</h2>
-          <p className="text-xs" style={{ color: '#8A9098' }}>Model output for each planned route · advisory</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Model output for each planned route · advisory</p>
         </div>
         <MlStatePill meta={q.data} signedOut={q.signedOut} />
       </div>
       <div className="p-4 space-y-3">
         <MlNotice signedOut={q.signedOut} error={q.error} meta={q.data} />
-        {q.loading && !q.data && !q.signedOut && <div className="text-xs" style={{ color: '#8A9098' }}>Loading routes…</div>}
+        {q.loading && !q.data && !q.signedOut && <LoadingRows label="Loading routes…" />}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           {rows.map((r) => (
             <div key={r.route_id} className="rounded-lg border p-3" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(255,253,249,0.6)' }}>

@@ -39,7 +39,6 @@ export default function FormShell({
             color: "#5B6472",
             background: "none",
             border: "none",
-            outline: "none",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#0E2A47")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "#5B6472")}

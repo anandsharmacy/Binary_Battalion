@@ -19,7 +19,7 @@ export function CardHeader({ title, sub, action }: { title: string; sub?: string
     <div className="px-4 py-3 border-b flex items-center justify-between gap-3" style={{ borderColor: BORDER }}>
       <div>
         <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>{title}</h2>
-        {sub && <p className="text-xs" style={{ color: '#8A9098' }}>{sub}</p>}
+        {sub && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
       </div>
       {action}
     </div>
@@ -41,7 +41,7 @@ export function PageHeader({ title, sub, right }: { title: string; sub?: React.R
 export function GhostBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
   return (
     <button onClick={onClick}
-      className="text-xs font-medium px-3 py-1.5 rounded border transition-colors"
+      className="ui-press text-xs font-medium px-3 py-1.5 rounded border min-h-[28px] pointer-coarse:min-h-11"
       style={{ borderColor: BORDER, color: TEAL }}>
       {children}
     </button>
@@ -51,7 +51,7 @@ export function GhostBtn({ children, onClick }: { children: React.ReactNode; onC
 export function PrimaryBtn({ children, onClick, disabled, style }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      className="text-xs font-medium px-3 py-2 rounded transition-all disabled:opacity-70"
+      className="ui-press text-xs font-medium px-3 py-2 rounded disabled:opacity-70"
       style={{ background: NAVY, color: 'white', minHeight: 44, ...style }}>
       {children}
     </button>

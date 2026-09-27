@@ -23,8 +23,8 @@ const field = {
   color: '#17212B',
 };
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <label className="block text-xs font-medium mb-1" style={{ color: '#5A6670' }}>{children}</label>;
+function Label({ children, htmlFor, id }: { children: React.ReactNode; htmlFor?: string; id?: string }) {
+  return <label htmlFor={htmlFor} id={id} className="block text-xs font-medium mb-1" style={{ color: '#5A6670' }}>{children}</label>;
 }
 
 export default function ReportIncident({ setPage, presetType }: { setPage?: (p: string) => void; presetType?: string }) {
@@ -194,12 +194,12 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
                     style={{
                       background: done ? '#2D6B4F' : active ? NAVY : SURFACE_2,
-                      color: done || active ? 'white' : '#8A9098',
+                      color: done || active ? 'white' : 'var(--text-muted)',
                     }}>
                     {done ? '✓' : String(i + 1).padStart(2, '0')}
                   </div>
                   <span className="text-xs font-medium whitespace-nowrap"
-                    style={{ color: active ? '#17212B' : '#8A9098' }}>{s}</span>
+                    style={{ color: active ? '#17212B' : 'var(--text-muted)' }}>{s}</span>
                 </div>
                 {i < STEPS.length - 1 && <span className="mx-3 text-xs" style={{ color: BORDER }}>→</span>}
               </div>
@@ -213,7 +213,7 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
         {step === 0 && (
           <div>
             <h3 className="font-semibold text-base mb-1" style={{ color: '#17212B' }}>Select Incident Type</h3>
-            <p className="text-xs mb-4" style={{ color: '#8A9098' }}>Choose the category that best matches what you observe.</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Choose the category that best matches what you observe.</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {TYPES.map(t => {
                 const sel = type === t.key;
@@ -239,7 +239,7 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="text-xs font-medium" style={{ color: '#5A6670' }}>GPS Coordinates</div>
-                  <div className="text-sm font-mono mt-0.5" style={{ color: gps ? '#17212B' : '#8A9098' }}>
+                  <div className="text-sm font-mono mt-0.5" style={{ color: gps ? '#17212B' : 'var(--text-muted)' }}>
                     {gps ?? 'Not captured'}
                   </div>
                 </div>
@@ -263,12 +263,12 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Location Name</Label>
-                <input value={locName} onChange={e => setLocName(e.target.value)} className="w-full rounded px-3 py-2 text-sm outline-none" style={field} /></div>
-              <div><Label>Route Name</Label>
-                <input value={route} onChange={e => setRoute(e.target.value)} className="w-full rounded px-3 py-2 text-sm outline-none" style={field} /></div>
-              <div className="col-span-2"><Label>Nearby Landmark</Label>
-                <input value={landmark} onChange={e => setLandmark(e.target.value)} placeholder="e.g. Dhansiri River bridge, Km 34" className="w-full rounded px-3 py-2 text-sm outline-none" style={field} /></div>
+              <div><Label htmlFor="ri-loc">Location Name</Label>
+                <input id="ri-loc" value={locName} onChange={e => setLocName(e.target.value)} className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
+              <div><Label htmlFor="ri-route">Route Name</Label>
+                <input id="ri-route" value={route} onChange={e => setRoute(e.target.value)} className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
+              <div className="col-span-2"><Label htmlFor="ri-landmark">Nearby Landmark</Label>
+                <input id="ri-landmark" value={landmark} onChange={e => setLandmark(e.target.value)} placeholder="e.g. Dhansiri River bridge, Km 34" className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
             </div>
           </div>
         )}
@@ -283,7 +283,7 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
               style={{ borderColor: BORDER, background: SURFACE_2, minHeight: 44 }}>
               <span className="text-2xl" style={{ color: TEAL }}>⊕</span>
               <span className="text-sm font-medium" style={{ color: '#17212B' }}>Capture / Upload Image</span>
-              <span className="text-xs" style={{ color: '#8A9098' }}>Multiple images and a short video are supported. Timestamp &amp; GPS metadata are attached automatically.</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Multiple images and a short video are supported. Timestamp &amp; GPS metadata are attached automatically.</span>
             </button>
             {evidenceError && <p className="text-xs" style={{ color: '#BE2424' }}>{evidenceError}</p>}
             {evidence.length > 0 && (
@@ -297,10 +297,10 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
                       <div className="flex items-center gap-1">
                         <div className="text-xs font-mono truncate flex-1" style={{ color: '#17212B' }}>{e.name}</div>
                         <button type="button" onClick={() => setEvidence(current => current.filter((_, index) => index !== i))}
-                          className="text-xs font-medium px-1.5 py-0.5 rounded border" aria-label={`Remove ${e.name}`}
+                          className="text-xs font-medium px-1.5 py-0.5 rounded border min-h-[28px] pointer-coarse:min-h-11" aria-label={`Remove ${e.name}`}
                           style={{ color: '#BE2424', borderColor: '#F5B8B8' }}>Remove</button>
                       </div>
-                      <div style={{ fontSize: 10, color: '#8A9098' }}>{Math.ceil(e.size / 1024)} KB · ◉ GPS tagged</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{Math.ceil(e.size / 1024)} KB · ◉ GPS tagged</div>
                     </div>
                   </div>
                 ))}
@@ -315,28 +315,28 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
             <h3 className="font-semibold text-base" style={{ color: '#17212B' }}>Incident Details</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Severity</Label>
-                <div className="flex gap-1.5 flex-wrap">
+                <Label id="ri-severity">Severity</Label>
+                <div role="group" aria-labelledby="ri-severity" className="flex gap-1.5 flex-wrap">
                   {(['LOW', 'MODERATE', 'HIGH', 'CRITICAL'] as Severity[]).map(s => (
-                    <button key={s} onClick={() => setSeverity(s)}
-                      className="rounded transition-all" style={{ outline: severity === s ? `2px solid ${NAVY}` : 'none', borderRadius: 6 }}>
+                    <button key={s} type="button" onClick={() => setSeverity(s)} aria-pressed={severity === s}
+                      className="rounded transition-all" style={{ boxShadow: severity === s ? `0 0 0 2px ${NAVY}` : 'none', borderRadius: 6 }}>
                       <SeverityBadge severity={s} />
                     </button>
                   ))}
                 </div>
               </div>
-              <div><Label>Road Condition</Label>
-                <select className="w-full rounded px-3 py-2 text-sm outline-none" style={field}>
+              <div><Label htmlFor="ri-road">Road Condition</Label>
+                <select id="ri-road" className="w-full rounded px-3 py-2 text-sm" style={field}>
                   <option>Partially Accessible</option><option>Fully Blocked</option><option>Passable with caution</option>
                 </select></div>
-              <div><Label>Vehicles Affected</Label>
-                <input type="number" defaultValue={12} className="w-full rounded px-3 py-2 text-sm outline-none" style={field} /></div>
-              <div><Label>Estimated Blockage</Label>
-                <input defaultValue="4–6 hours" className="w-full rounded px-3 py-2 text-sm outline-none" style={field} /></div>
-              <div className="col-span-2"><Label>Description</Label>
-                <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3}
+              <div><Label htmlFor="ri-vehicles">Vehicles Affected</Label>
+                <input id="ri-vehicles" type="number" min={0} placeholder="Number of vehicles" className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
+              <div><Label htmlFor="ri-blockage">Estimated Blockage</Label>
+                <input id="ri-blockage" placeholder="e.g. 4–6 hours" className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
+              <div className="col-span-2"><Label htmlFor="ri-desc">Description</Label>
+                <textarea id="ri-desc" value={desc} onChange={e => setDesc(e.target.value)} rows={3}
                   placeholder="Describe conditions, accessibility and any immediate action required…"
-                  className="w-full rounded px-3 py-2 text-sm outline-none resize-none" style={field} /></div>
+                  className="w-full rounded px-3 py-2 text-sm resize-none" style={field} /></div>
             </div>
 
             {/* AI assessment */}
@@ -361,13 +361,13 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
                     { l: 'Logistics Impact', v: 'HIGH', c: '#BE2424' },
                   ].map(m => (
                     <div key={m.l}>
-                      <div style={{ fontSize: 10, color: '#8A9098' }} className="uppercase tracking-wide mb-0.5">{m.l}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }} className="uppercase tracking-wide mb-0.5">{m.l}</div>
                       <div className="text-sm font-bold" style={{ color: m.c }}>{m.v}</div>
                     </div>
                   ))}
                 </div>
               )}
-              <p className="text-xs mt-3" style={{ color: '#8A9098' }}>
+              <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
                 AI estimates support your judgement — they are not guaranteed facts. Verify on-site conditions.
               </p>
             </div>
@@ -389,7 +389,7 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
                 ['AI Risk / Priority', 'HIGH · 82/100 (89% confidence)'],
               ].map(([k, v]) => (
                 <div key={k} className="flex px-4 py-2.5 text-sm gap-4">
-                  <span className="w-40 flex-shrink-0 text-xs font-medium" style={{ color: '#8A9098' }}>{k}</span>
+                  <span className="w-40 flex-shrink-0 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{k}</span>
                   <span style={{ color: '#17212B' }}>{v}</span>
                 </div>
               ))}
@@ -421,7 +421,7 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
                     ['District Officer Notification', 'Sent ✓'],
                   ].map(([k, v]) => (
                     <div key={k} className="flex px-4 py-2.5 text-sm justify-between">
-                      <span className="text-xs font-medium" style={{ color: '#8A9098' }}>{k}</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{k}</span>
                       <span className="font-medium" style={{ color: k === 'Status' ? '#C4861A' : '#17212B' }}>{v}</span>
                     </div>
                   ))}

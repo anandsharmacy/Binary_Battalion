@@ -120,6 +120,7 @@ body {
 }
 .glass-field.accent-saffron:focus { border-color: #C2691A; }
 .glass-field.accent-green:focus { border-color: #1E6B45; }
+.glass-field:focus-visible { outline: 2px solid #0E2A47; outline-offset: 2px; }
 
 /* ---- Liquid glass: form card ---- */
 .liquid-card {

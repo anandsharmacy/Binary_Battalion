@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import EmptyState from '@/components/EmptyState';
+import { Icon } from '@/auth/Icons';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
 import { COMPLETED_TASK_STATUSES, averageResponseMinutes, getTasks, subscribeToTasks } from '@/lib/taskStore';
 import {
@@ -21,7 +23,7 @@ const reportedMs = (incident: { reportedAt?: string; reportedTime: string }) => 
 
 function LineChart({ data, color, height = 80 }: { data: number[]; color: string; height?: number }) {
   if (!data.length) {
-    return <div className="text-xs" style={{ color: '#8A9098' }}>No trend data available.</div>;
+    return <EmptyState icon={<Icon name="analytics" size={22} />} title="No trend data yet" message="Trends appear once incidents are reported." />;
   }
 
   const max = Math.max(...data);
@@ -41,7 +43,7 @@ function LineChart({ data, color, height = 80 }: { data: number[]; color: string
 
 function BarChart({ data, colors }: { data: { name: string; accessible: number; restricted: number }[]; colors: string[] }) {
   if (!data.length) {
-    return <div className="text-xs py-4 text-center" style={{ color: '#8A9098' }}>No route accessibility data available.</div>;
+    return <EmptyState icon={<Icon name="route" size={22} />} title="No route accessibility data" message="Try another state or district." />;
   }
 
   return (
@@ -66,7 +68,7 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
   return (
     <div className="rounded-xl border shadow-sm p-4" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
       <h3 className="font-semibold text-sm mb-0.5" style={{ color: '#17212B' }}>{title}</h3>
-      {subtitle && <p className="text-xs mb-3" style={{ color: '#8A9098' }}>{subtitle}</p>}
+      {subtitle && <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>}
       {children}
     </div>
   );
@@ -247,7 +249,7 @@ export default function Analytics() {
               id="state-filter"
               value={selectedState}
               onChange={e => handleStateChange(e.target.value)}
-              className="text-xs px-3 py-1.5 rounded-lg border font-medium outline-none cursor-pointer"
+              className="text-xs px-3 py-1.5 rounded-lg border font-medium cursor-pointer"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(250,247,240,0.82)', color: '#17212B' }}
             >
               <option value="ALL">All States</option>
@@ -263,7 +265,7 @@ export default function Analytics() {
               id="district-filter"
               value={selectedDistrict}
               onChange={e => setSelectedDistrict(e.target.value)}
-              className="text-xs px-3 py-1.5 rounded-lg border font-medium outline-none cursor-pointer"
+              className="text-xs px-3 py-1.5 rounded-lg border font-medium cursor-pointer"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(250,247,240,0.82)', color: '#17212B' }}
             >
               <option value="ALL">All Districts</option>
@@ -296,7 +298,7 @@ export default function Analytics() {
           <LineChart data={incidentTrend} color="#17324D" />
           <div className="flex justify-between mt-1">
             {days.map((d, i) => (
-              <span key={i} className="text-xs" style={{ color: '#8A9098' }}>{d}</span>
+              <span key={i} className="text-xs" style={{ color: 'var(--text-muted)' }}>{d}</span>
             ))}
           </div>
         </ChartCard>
@@ -322,10 +324,10 @@ export default function Analytics() {
           </div>
           <div className="flex justify-between mt-1">
             {days.map((d, i) => (
-              <span key={i} className="text-xs" style={{ color: '#8A9098' }}>{d}</span>
+              <span key={i} className="text-xs" style={{ color: 'var(--text-muted)' }}>{d}</span>
             ))}
           </div>
-          <div className="flex items-center gap-1.5 text-xs mt-2" style={{ color: '#8A9098' }}>
+          <div className="flex items-center gap-1.5 text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
             <div className="w-6 border-dashed border-t-2" style={{ borderColor: '#D7A73A' }} />
             35-minute target
           </div>
@@ -335,7 +337,7 @@ export default function Analytics() {
           <LineChart data={riskTrend} color="#BE2424" />
           <div className="flex justify-between mt-1">
             {days.map((d, i) => (
-              <span key={i} className="text-xs" style={{ color: '#8A9098' }}>{d}</span>
+              <span key={i} className="text-xs" style={{ color: 'var(--text-muted)' }}>{d}</span>
             ))}
           </div>
           <div className="mt-3 rounded p-2 text-xs" style={{ background: '#FEE9E9', color: '#BE2424' }}>
@@ -356,7 +358,7 @@ export default function Analytics() {
             <thead className="sticky top-0 z-10">
               <tr style={{ background: 'rgba(238,228,210,0.98)' }}>
                 {['District', 'State', 'Incidents', 'Avg Response', 'Route Access', 'Logistics Delays', 'Unresolved'].map(h => (
-                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider"
+                  <th key={h} scope="col" className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider"
                     style={{ color: '#5A6670' }}>{h}</th>
                 ))}
               </tr>
@@ -364,7 +366,7 @@ export default function Analytics() {
             <tbody>
               {districtTable.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-xs" style={{ color: '#8A9098' }}>
+                  <td colSpan={7} className="px-4 py-8 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
                     No district analytics data found for the selected filter.
                   </td>
                 </tr>
