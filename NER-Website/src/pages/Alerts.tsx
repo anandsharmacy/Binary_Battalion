@@ -167,15 +167,15 @@ export default function Alerts() {
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold text-sm" style={{ color: '#17212B' }}>{alert.title}</h3>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs" style={{ color: '#8A9098' }}>{alert.time}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{alert.time}</span>
                     {alert.acknowledged && (
-                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(238,228,210,0.88)', color: '#8A9098' }}>
+                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(238,228,210,0.88)', color: 'var(--text-muted)' }}>
                         Acknowledged
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-xs mt-0.5 mb-2" style={{ color: '#8A9098' }}>
+                <div className="flex items-center gap-3 text-xs mt-0.5 mb-2" style={{ color: 'var(--text-muted)' }}>
                   <span>◉ {alert.location}</span>
                   <span>· {alert.category}</span>
                   <span>· Source: {alert.source}</span>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { MlTopAlertsPanel } from '@/components/MlRisk';
 import MapViz, { type MapLayer } from '@/components/MapViz';
+import Modal from '@/components/Modal';
 import { SeverityBadge, StatusBadge, AccessibilityBadge } from '@/components/StatusBadge';
 import type { Severity } from '@/data/demo';
 import { getIncidents, subscribeToIncidents, type StoredIncident } from '@/lib/incidentStore';
@@ -293,7 +294,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
               <span className="text-base" style={{ color: k.color }}>{k.icon}</span>
             </div>
             <div className="text-2xl font-bold leading-none mb-1" style={{ color: '#17212B' }}>
-              {k.value}<span className="text-sm font-medium" style={{ color: '#8A9098' }}>{k.suffix ?? ''}</span>
+              {k.value}<span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{k.suffix ?? ''}</span>
             </div>
             <div className="text-xs font-medium" style={{ color: '#5A6670' }}>{k.label}</div>
           </Card>
@@ -329,13 +330,13 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
               <div key={`${c.title}-${i}`} className="px-4 py-3 animate-[fadeIn_.3s_ease]">
                 <div className="flex items-center justify-between mb-1.5">
                   <SeverityBadge severity={c.sev} />
-                  <span className="text-xs" style={{ color: '#8A9098' }}>{c.time}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{c.time}</span>
                 </div>
                 <div className="text-sm font-semibold mb-1.5" style={{ color: '#17212B' }}>{c.title}</div>
                 <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-2">
                   {c.meta.map(([k, v]) => (
                     <span key={k} className="text-xs" style={{ color: '#5A6670' }}>
-                      <span style={{ color: '#8A9098' }}>{k}: </span>{v}
+                      <span style={{ color: 'var(--text-muted)' }}>{k}: </span>{v}
                     </span>
                   ))}
                 </div>
@@ -370,7 +371,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
                   {i === 0 && analyzing
                     ? <span className="text-sm animate-pulse" style={{ color: GOLD }}>✦ Analyzing…</span>
                     : <><span className="text-2xl font-bold transition-all" style={{ color: riskColor(score) }}>{score}</span>
-                        <span className="text-xs" style={{ color: '#8A9098' }}>/100</span></>}
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>/100</span></>}
                 </div>
                 <div className="flex items-center justify-between">
                   <SeverityBadge severity={r.level} />
@@ -404,7 +405,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
               <thead>
                 <tr style={{ background: SURFACE_2 }}>
                   {['District', 'Risk', 'Access.', 'Incidents', 'Alerts', 'Routes', 'Logistics', 'Status'].map(h => (
-                    <th key={h} className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: '#5A6670' }}>{h}</th>
+                    <th key={h} scope="col" className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: '#5A6670' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -436,7 +437,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
               <div key={v.id} className="px-4 py-2.5 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-mono font-semibold" style={{ color: TEAL }}>{v.id}</div>
-                  <div className="text-xs" style={{ color: '#8A9098' }}>{v.route} → {v.destination}</div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{v.route} → {v.destination}</div>
                 </div>
                 <StatusBadge status={v.status} />
                 <SeverityBadge severity={v.risk} />
@@ -444,8 +445,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
               </div>
             ))}
           </div>
-          <div className="px-4 py-2 border-t flex items-center justify-between" style={{ borderColor: BORDER }}>
-            <span className="text-xs" style={{ color: '#8A9098' }}>Last updated: 10 sec ago</span>
+          <div className="px-4 py-2 border-t flex items-center justify-end" style={{ borderColor: BORDER }}>
             <button onClick={() => setPage?.('logistics')} className="text-xs font-medium" style={{ color: TEAL }}>View Live Logistics →</button>
           </div>
         </Card>
@@ -456,7 +456,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
         {/* AI predictions */}
         <Card>
           <CardHeader title="Incident Risk Watch"
-            action={<span className="text-xs" style={{ color: '#8A9098' }}>Rule-based</span>} />
+            action={<span className="text-xs" style={{ color: 'var(--text-muted)' }}>Rule-based</span>} />
           <div className="p-4 space-y-3">
             {predictionRows.map(p => (
               <div key={p.title} className="rounded-lg border p-3" style={{ background: SURFACE_2, borderColor: BORDER }}>
@@ -466,11 +466,11 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                   {p.rows.map(([k, v]) => (
-                    <span key={k} className="text-xs" style={{ color: '#5A6670' }}><span style={{ color: '#8A9098' }}>{k}: </span>{v}</span>
+                    <span key={k} className="text-xs" style={{ color: '#5A6670' }}><span style={{ color: 'var(--text-muted)' }}>{k}: </span>{v}</span>
                   ))}
                 </div>
                 <div className="flex items-center gap-1 mt-1.5">
-                  <span className="text-xs" style={{ color: '#8A9098' }}>Rule-based estimate from reported incidents — not model output</span></div>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Rule-based estimate from reported incidents — not model output</span></div>
               </div>
             ))}
             <button onClick={() => setPage?.('ai')} className="w-full text-xs font-medium px-3 py-2 rounded border" style={{ borderColor: BORDER, color: TEAL }}>View All Predictions →</button>
@@ -486,7 +486,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
                 <SeverityBadge severity={a.sev} />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium" style={{ color: '#17212B' }}>{a.label}</div>
-                  <div className="text-xs" style={{ color: '#8A9098' }}>{a.loc} · {a.time}</div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{a.loc} · {a.time}</div>
                 </div>
                 <button className="text-xs font-medium px-2.5 py-1 rounded border" style={{ borderColor: BORDER, color: TEAL, minHeight: 32 }}>Review</button>
               </div>
@@ -513,7 +513,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
             <CardHeader title="Regional Accessibility" />
             <div className="p-4">
               <div className="flex items-end justify-between mb-2">
-                <div className="text-3xl font-bold leading-none" style={{ color: '#C25A1A' }}>{regionalAccessibility}<span className="text-sm" style={{ color: '#8A9098' }}>/100</span></div>
+                <div className="text-3xl font-bold leading-none" style={{ color: '#C25A1A' }}>{regionalAccessibility}<span className="text-sm" style={{ color: 'var(--text-muted)' }}>/100</span></div>
                 <SeverityBadge severity={regionalAccessibility >= 75 ? 'MODERATE' : 'HIGH'} />
               </div>
               <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: BORDER }}>
@@ -536,14 +536,13 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
 
       {/* Incident Review Slide-over / Modal */}
       {reviewIncident && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setReviewIncident(null)} />
-          <div className="w-full max-w-2xl overflow-y-auto shadow-2xl p-6 flex flex-col gap-5"
+        <Modal open onClose={() => setReviewIncident(null)} labelledBy="review-title" side="right">
+          <div className="h-full w-[42rem] max-w-full overflow-y-auto shadow-2xl p-6 flex flex-col gap-5"
             style={{ background: '#FAF7F0', borderLeft: '1px solid rgba(180,162,136,0.55)' }}>
             <div className="flex items-start justify-between border-b pb-4" style={{ borderColor: 'rgba(180,162,136,0.4)' }}>
               <div>
-                <div className="font-mono text-xs mb-1" style={{ color: '#8A9098' }}>Incident ID: {reviewIncident.id}</div>
-                <h2 className="font-semibold text-xl" style={{ color: '#17212B' }}>
+                <div className="font-mono text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Incident ID: {reviewIncident.id}</div>
+                <h2 id="review-title" className="font-semibold text-xl" style={{ color: '#17212B' }}>
                   {reviewIncident.type ?? 'Incident'} — {reviewIncident.location ?? 'Unknown Location'}
                 </h2>
                 <div className="flex items-center gap-2 mt-2">
@@ -552,8 +551,10 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setReviewIncident(null)}
-                className="text-lg font-bold px-2 py-1 rounded hover:bg-black/10 transition-colors"
+                aria-label="Close details"
+                className="text-lg font-bold px-2 py-1 rounded hover:bg-black/10 transition-colors min-h-[28px] min-w-[28px] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                 style={{ color: '#5A6670' }}>
                 ✕
               </button>
@@ -639,7 +640,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}`}</style>

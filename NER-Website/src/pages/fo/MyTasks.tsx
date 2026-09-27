@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { SeverityBadge, StatusBadge } from '@/components/StatusBadge';
-import type { Severity } from '@/data/demo';
+import type { Severity, TaskStatus } from '@/data/demo';
 import { Card, PageHeader, BORDER, SURFACE, SURFACE_2, TEAL } from './ui';
 import { profileService } from '@/lib/profileService';
 import { getTasks, requestTaskVerification, subscribeToTasks, updateTask } from '@/lib/taskStore';
+import { notify } from '@/lib/notify';
+import EmptyState from '@/components/EmptyState';
+import { Icon } from '@/auth/Icons';
 
 type Life = 'Assigned' | 'Accepted' | 'In Progress' | 'Completed' | 'Awaiting Verification' | 'Verified' | 'Rejected';
 
@@ -17,6 +20,7 @@ const TABS = ['All', 'Pending', 'In Progress', 'Completed', 'Overdue'] as const;
 const NEXT: Record<Life, Life | null> = { Assigned: 'Accepted', Accepted: 'In Progress', 'In Progress': 'Completed', Completed: 'Awaiting Verification', 'Awaiting Verification': null, Verified: null, Rejected: null };
 const ACTION_LABEL: Record<Life, string> = { Assigned: 'Accept Task', Accepted: 'Start Task', 'In Progress': 'Complete Task', Completed: 'Awaiting Verification', 'Awaiting Verification': 'Awaiting District Officer Verification', Verified: 'Verified', Rejected: 'Rejected by District Officer' };
 const DONE: Life[] = ['Completed', 'Awaiting Verification', 'Verified'];
+const DONE_MESSAGE: Partial<Record<Life, string>> = { Assigned: 'Task accepted.', Accepted: 'Task started.', 'In Progress': 'Task completed.', Completed: 'Marked complete. Awaiting District Officer review.' };
 
 function toFieldTask(task: ReturnType<typeof getTasks>[number]): FOTask {
   return {
@@ -35,6 +39,7 @@ export default function MyTasks() {
   const [tab, setTab] = useState<typeof TABS[number]>('All');
   const [tasks, setTasks] = useState<FOTask[]>(() => getTasks().filter(task => task.assignedOfficer === 'FO-1024').map(toFieldTask));
   const [busy, setBusy] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const [profile, setProfile] = useState(() => {
     try {
       return profileService.getProfile();
@@ -79,10 +84,24 @@ export default function MyTasks() {
       if (t.status === 'Completed') requestTaskVerification(id);
       else updateTask(id, { status: NEXT[t.status]! });
       setBusy(null);
+      const prev = t.status;
+      notify(DONE_MESSAGE[prev] ?? 'Task updated.', {
+        action: {
+          label: 'Undo',
+          run: () => {
+            setTasks(ts => ts.map(x => x.id === id ? { ...x, status: prev } : x));
+            updateTask(id, { status: (prev === 'Assigned' ? 'New' : prev) as TaskStatus });
+            notify('Change undone.');
+          },
+        },
+      });
     }, 800);
   };
 
+  const needle = query.trim().toLowerCase();
+  const clearFilters = () => { setTab('All'); setQuery(''); };
   const filtered = tasks.filter(t => {
+    if (needle && ![t.id, t.title].some(v => v.toLowerCase().includes(needle))) return false;
     if (tab === 'All') return true;
     if (tab === 'Pending') return t.status === 'Assigned' || t.status === 'Accepted';
     if (tab === 'In Progress') return t.status === 'In Progress';
@@ -109,23 +128,32 @@ export default function MyTasks() {
             <button key={t} onClick={() => setTab(t)}
               className="px-4 py-2 text-sm font-medium transition-all whitespace-nowrap"
               style={{
-                color: active ? '#17212B' : '#8A9098',
+                color: active ? '#17212B' : 'var(--text-muted)',
                 borderBottom: `2px solid ${active ? TEAL : 'transparent'}`,
                 marginBottom: -1,
               }}>
-              {t} <span className="text-xs" style={{ color: '#8A9098' }}>({count})</span>
+              {t} <span className="text-xs" style={{ color: 'var(--text-muted)' }}>({count})</span>
             </button>
           );
         })}
       </div>
 
       <Card>
+        <div className="px-4 py-3 border-b flex flex-wrap items-center justify-between gap-2" style={{ borderColor: BORDER }}>
+          <span className="text-sm font-medium" style={{ color: '#17212B' }}>
+            {filtered.length} task{filtered.length !== 1 ? 's' : ''}
+          </span>
+          <input type="search" value={query} onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape' && query) { e.preventDefault(); setQuery(''); } }}
+            aria-label="Search my tasks" placeholder="Search task ID or title"
+            className="text-xs px-2 py-1.5 rounded border w-full sm:w-52" style={{ borderColor: BORDER, background: SURFACE }} />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: SURFACE_2 }}>
                 {['Task ID', 'Task', 'Location', 'Priority', 'Assigned', 'Due', 'Status', 'Action'].map(h => (
-                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: '#5A6670' }}>{h}</th>
+                  <th key={h} scope="col" className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: '#5A6670' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -136,8 +164,8 @@ export default function MyTasks() {
                   <td className="px-4 py-2.5 text-xs font-medium" style={{ color: '#17212B' }}>{t.title}</td>
                   <td className="px-4 py-2.5 text-xs" style={{ color: '#5A6670' }}>{t.location}</td>
                   <td className="px-4 py-2.5"><SeverityBadge severity={t.priority} /></td>
-                  <td className="px-4 py-2.5 text-xs" style={{ color: '#8A9098' }}>{t.assigned}</td>
-                  <td className="px-4 py-2.5 text-xs" style={{ color: '#8A9098' }}>{t.due}</td>
+                  <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-muted)' }}>{t.assigned}</td>
+                  <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--text-muted)' }}>{t.due}</td>
                   <td className="px-4 py-2.5"><StatusBadge status={t.status} /></td>
                   <td className="px-4 py-2.5">
                     {NEXT[t.status] ? (
@@ -157,7 +185,11 @@ export default function MyTasks() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm" style={{ color: '#8A9098' }}>No tasks in this view.</td></tr>
+                <tr><td colSpan={8}>{query
+                  ? <EmptyState icon={<Icon name="search" size={22} />} title="No matches" message={`No tasks match “${query.trim()}”.`} action={{ label: 'Clear search', run: clearFilters }} />
+                  : tab === 'All'
+                  ? <EmptyState icon={<Icon name="tasks" size={22} />} title="No tasks assigned to you" message="Tasks your District Officer assigns will appear here." />
+                  : <EmptyState icon={<Icon name="tasks" size={22} />} title="No tasks in this view" action={{ label: 'Show all tasks', run: () => setTab('All') }} />}</td></tr>
               )}
             </tbody>
           </table>

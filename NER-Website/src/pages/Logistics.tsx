@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import EmptyState from '@/components/EmptyState';
+import { Icon } from '@/auth/Icons';
 import { StatusBadge } from '@/components/StatusBadge';
 import MapViz from '@/components/MapViz';
 import { routes } from '@/data/demo';
@@ -59,13 +61,13 @@ export default function Logistics() {
           </div>
           <div className="divide-y" style={{ borderColor: 'rgba(238,228,210,0.88)' }}>
             {byState.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm" style={{ color: '#8A9098' }}>No riders reporting yet.</div>
+              <EmptyState icon={<Icon name="truck" size={22} />} title="No riders reporting yet" message="Riders appear here once their app starts sharing location." />
             )}
             {byState.map(group => (
               <div key={group.state} className="px-4 py-3">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-semibold" style={{ color: '#17212B' }}>{group.state}</span>
-                  <span className="text-xs" style={{ color: '#8A9098' }}>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {group.riders.length} rider{group.riders.length === 1 ? '' : 's'} · {group.riders.filter(r => r.status === 'Active').length} active
                   </span>
                 </div>
@@ -103,14 +105,14 @@ export default function Logistics() {
             <thead>
               <tr style={{ background: 'rgba(243,235,220,0.55)' }}>
                 {['Rider ID', 'Rider Name', 'Phone', 'State', 'District', 'Vehicle Type', 'Rating', 'Status', 'Current Location'].map(h => (
-                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                  <th key={h} scope="col" className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
                     style={{ color: '#5A6670' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {riders.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-10 text-center text-sm" style={{ color: '#8A9098' }}>No riders reporting yet.</td></tr>
+                <tr><td colSpan={9}><EmptyState icon={<Icon name="truck" size={22} />} title="No riders reporting yet" message="Riders appear here once their app starts sharing location." /></td></tr>
               )}
               {riders.map((r, i) => {
                 const selected = r.id === selectedRiderId;

@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import EmptyState from '@/components/EmptyState';
+import { Icon } from '@/auth/Icons';
 import MapViz from '@/components/MapViz';
 import { SeverityBadge, StatusBadge, AccessibilityBadge } from '@/components/StatusBadge';
 import type { Severity } from '@/data/demo';
@@ -197,25 +199,25 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
         {/* Current Area Situation */}
         <Card className="xl:col-span-1">
           <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
-            <div className="text-xs uppercase tracking-widest" style={{ color: '#8A9098', fontSize: 10 }}>Area Status</div>
+            <div className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)', fontSize: 11 }}>Area Status</div>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>{profile.region || 'Assigned District'}</h2>
           </div>
           <div className="p-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-xs mb-1" style={{ color: '#8A9098' }}>Accessibility Score</div>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Accessibility Score</div>
                 <AccessibilityBadge score={Math.round(accessibilityScore)} />
               </div>
               <div>
-                <div className="text-xs mb-1" style={{ color: '#8A9098' }}>Risk Level</div>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Risk Level</div>
                 <SeverityBadge severity={highestSeverity as Severity} />
               </div>
               <div>
-                <div className="text-xs mb-1" style={{ color: '#8A9098' }}>Nearby Incidents</div>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nearby Incidents</div>
                 <div className="text-xl font-bold" style={{ color: '#17212B' }}>{areaIncidents.length}</div>
               </div>
               <div>
-                <div className="text-xs mb-1" style={{ color: '#8A9098' }}>Weather</div>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Weather</div>
                 <div className="text-sm font-medium" style={{ color: '#17212B' }}>{areaIncidents.length ? 'Active monitoring' : 'No critical conditions'}</div>
               </div>
             </div>
@@ -229,7 +231,7 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 text-xs" style={{ color: '#8A9098' }}>
+            <div className="flex items-center justify-between pt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
               <span>Last updated: just now</span>
               <button className="font-medium" style={{ color: '#2F6F7E' }}>Refresh ↻</button>
             </div>
@@ -241,7 +243,7 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
           <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: BORDER }}>
             <div>
               <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Nearby Incidents</h2>
-              <p className="text-xs" style={{ color: '#8A9098' }}>Within your assigned area</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Within your assigned area</p>
             </div>
             <button onClick={() => setPage?.('fo-alerts')}
               className="text-xs font-medium px-3 py-1.5 rounded border transition-colors"
@@ -262,7 +264,7 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold" style={{ color: '#17212B' }}>{inc.type}</span>
-                    <span className="text-xs" style={{ color: '#8A9098' }}>· {inc.distance}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>· {inc.distance}</span>
                   </div>
                   <div className="text-xs" style={{ color: '#5A6670' }}>{inc.location} · {inc.time}</div>
                 </div>
@@ -271,7 +273,7 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
                 <button className="text-xs font-medium" style={{ color: '#2F6F7E' }}>View →</button>
               </div>
             )) : (
-              <div className="px-4 py-8 text-center text-sm" style={{ color: '#8A9098' }}>
+              <div className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
                 No active incidents in your assigned area right now.
               </div>
             )}
@@ -284,7 +286,7 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: BORDER }}>
           <div>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>My Priority Tasks</h2>
-            <p className="text-xs" style={{ color: '#8A9098' }}>Sorted by priority and due time</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sorted by priority and due time</p>
           </div>
           <button onClick={() => setPage?.('fo-tasks')}
             className="text-xs font-medium px-3 py-1.5 rounded border transition-colors"
@@ -304,10 +306,10 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
                 </div>
                 <h3 className="font-semibold text-sm mb-2" style={{ color: '#17212B' }}>{task.title}</h3>
                 <div className="space-y-1 text-xs mb-3 flex-1" style={{ color: '#5A6670' }}>
-                  <div><span style={{ color: '#8A9098' }}>Location:</span> {task.location}</div>
-                  <div><span style={{ color: '#8A9098' }}>Due:</span> {task.due}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Location:</span> {task.location}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Due:</span> {task.due}</div>
                   <div className="flex items-center gap-1.5 pt-0.5">
-                    <span style={{ color: '#8A9098' }}>Status:</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Status:</span>
                     <StatusBadge status={task.status} />
                   </div>
                 </div>
@@ -325,7 +327,7 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
               </div>
             );
           })}
-          {priorityTasks.length === 0 && <p className="p-4 text-sm" style={{ color: '#8A9098' }}>No tasks assigned yet.</p>}
+          {priorityTasks.length === 0 && <EmptyState icon={<Icon name="tasks" size={22} />} title="No tasks assigned yet" message="You can still report an incident from the field." action={setPage ? { label: 'Report Incident', run: () => setPage('fo-report') } : undefined} />}
         </div>
       </Card>
 
@@ -334,7 +336,7 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: BORDER }}>
           <div>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Quick Actions</h2>
-            <p className="text-xs" style={{ color: '#8A9098' }}>Report a field incident directly</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Report a field incident directly</p>
           </div>
           <span className="text-xs px-2 py-0.5 rounded border" style={{ borderColor: '#F5CDA8', background: '#FEF1E6', color: '#C25A1A' }}>
             Primary Operation

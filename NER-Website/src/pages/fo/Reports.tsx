@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Card, CardHeader, PageHeader, BORDER, SURFACE_2, NAVY, TEAL } from './ui';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
 import { getTasks, subscribeToTasks } from '@/lib/taskStore';
+import Modal from '@/components/Modal';
+import EmptyState from '@/components/EmptyState';
+import { Icon } from '@/auth/Icons';
 
 const OFFICER_ID = 'FO-1024';
 
@@ -80,38 +83,38 @@ export default function Reports() {
               <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: SURFACE_2, color: NAVY }}>⊡</div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate" style={{ color: '#17212B' }}>{r.title}</div>
-                <div className="text-xs" style={{ color: '#8A9098' }}>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   <span className="font-mono">{r.id}</span> · {r.type} · {r.date}
                 </div>
               </div>
               <span className="text-xs px-2 py-0.5 rounded border" style={{ background: '#EAF4EE', borderColor: '#A8D4B8', color: '#2D6B4F' }}>{r.status}</span>
-              <button onClick={() => setSelectedReport(r)} className="text-xs font-medium px-2.5 py-1 rounded border" style={{ color: TEAL, borderColor: BORDER }}>View</button>
+              <button onClick={() => setSelectedReport(r)} className="text-xs font-medium px-2.5 py-1 rounded border min-h-[28px] pointer-coarse:min-h-11" style={{ color: TEAL, borderColor: BORDER }}>View</button>
             </div>
           ))}
-          {reports.length === 0 && <div className="px-4 py-10 text-center text-sm" style={{ color: '#8A9098' }}>No task activity to report yet.</div>}
+          {reports.length === 0 && <EmptyState icon={<Icon name="reports" size={22} />} title="No task activity to report yet" message="Reports are generated from tasks assigned to you." />}
         </div>
       </Card>
 
       {selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4" onClick={() => setSelectedReport(null)}>
-          <div className="w-full max-w-lg rounded-xl border shadow-2xl" onClick={event => event.stopPropagation()} style={{ background: 'rgba(250,247,240,0.98)', borderColor: BORDER }}>
+        <Modal open onClose={() => setSelectedReport(null)} labelledBy="report-title">
+          <div className="w-[32rem] max-w-full rounded-xl border shadow-2xl" style={{ background: 'rgba(250,247,240,0.98)', borderColor: BORDER }}>
             <div className="flex items-start justify-between gap-4 px-5 py-4 border-b" style={{ borderColor: BORDER }}>
               <div>
-                <div className="font-mono text-xs" style={{ color: '#8A9098' }}>{selectedReport.id}</div>
-                <h2 className="font-semibold text-lg" style={{ color: '#17212B' }}>{selectedReport.title}</h2>
+                <div className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{selectedReport.id}</div>
+                <h2 id="report-title" className="font-semibold text-lg" style={{ color: '#17212B' }}>{selectedReport.title}</h2>
               </div>
-              <button onClick={() => setSelectedReport(null)} className="text-xl" style={{ color: '#8A9098' }} aria-label="Close report">✕</button>
+              <button type="button" onClick={() => setSelectedReport(null)} className="text-xl flex items-center justify-center rounded min-h-[28px] min-w-[28px] pointer-coarse:min-h-11 pointer-coarse:min-w-11" style={{ color: 'var(--text-muted)' }} aria-label="Close report">✕</button>
             </div>
             <div className="p-5 space-y-3 text-sm">
-              <div className="flex justify-between gap-4"><span style={{ color: '#8A9098' }}>Type</span><span style={{ color: '#17212B' }}>{selectedReport.type}</span></div>
-              <div className="flex justify-between gap-4"><span style={{ color: '#8A9098' }}>Created</span><span style={{ color: '#17212B' }}>{selectedReport.date}</span></div>
-              <div className="flex justify-between gap-4"><span style={{ color: '#8A9098' }}>Status</span><span style={{ color: '#2D6B4F' }}>{selectedReport.status}</span></div>
-              <textarea value={manualReport} onChange={event => setManualReport(event.target.value)} rows={8}
+              <div className="flex justify-between gap-4"><span style={{ color: 'var(--text-muted)' }}>Type</span><span style={{ color: '#17212B' }}>{selectedReport.type}</span></div>
+              <div className="flex justify-between gap-4"><span style={{ color: 'var(--text-muted)' }}>Created</span><span style={{ color: '#17212B' }}>{selectedReport.date}</span></div>
+              <div className="flex justify-between gap-4"><span style={{ color: 'var(--text-muted)' }}>Status</span><span style={{ color: '#2D6B4F' }}>{selectedReport.status}</span></div>
+              <textarea aria-label="Report notes" value={manualReport} onChange={event => setManualReport(event.target.value)} rows={8}
                 className="w-full rounded-lg border p-3 text-xs"
                 style={{ background: 'rgba(238,228,210,0.88)', borderColor: BORDER, color: '#17212B' }} />
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

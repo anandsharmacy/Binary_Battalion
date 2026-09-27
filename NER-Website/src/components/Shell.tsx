@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Role } from '@/roles';
 import ProfilePanel, { type ProfileMeta } from '@/components/ProfilePanel';
 import { MlStatePill } from '@/components/MlRisk';
@@ -9,39 +9,44 @@ import { profileService } from '@/lib/profileService';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
 import { getTasks, subscribeToTasks } from '@/lib/taskStore';
 import { useLanguage } from '@/lib/i18n';
+import Modal from '@/components/Modal';
+import { Toaster } from '@/lib/notify';
+import { MenuIcon, BellIcon, XIcon, LogOutIcon, HelpIcon, Icon, type IconName } from '@/auth/Icons';
 
-const NAV = [
-  { key: 'dashboard', label: 'Dashboard',     icon: '⊞' },
-  { key: 'map',       label: 'District Map',  icon: '◉' },
-  { key: 'incidents', label: 'Incidents',     icon: '◆', badge: 5 },
-  { key: 'routes',    label: 'Routes',        icon: '→' },
-  { key: 'logistics', label: 'Logistics',     icon: '⊟' },
-  { key: 'tasks',     label: 'Tasks',         icon: '☑' },
-  { key: 'ai',        label: 'AI Insights',   icon: '✦', gold: true },
-  { key: 'alerts',    label: 'Alerts',        icon: '◬', badge: 3 },
-  { key: 'approvals', label: 'Approvals',     icon: '✓' },
-  { key: 'reports',   label: 'Reports',       icon: '⊡' },
-  { key: 'analytics', label: 'Analytics',     icon: '▨' },
+type NavItem = { key: string; label: string; icon: IconName; badge?: number; gold?: boolean };
+
+const NAV: NavItem[] = [
+  { key: 'dashboard', label: 'Dashboard',     icon: 'grid' },
+  { key: 'map',       label: 'District Map',  icon: 'map' },
+  { key: 'incidents', label: 'Incidents',     icon: 'incident', badge: 5 },
+  { key: 'routes',    label: 'Routes',        icon: 'route' },
+  { key: 'logistics', label: 'Logistics',     icon: 'truck' },
+  { key: 'tasks',     label: 'Tasks',         icon: 'tasks' },
+  { key: 'ai',        label: 'AI Insights',   icon: 'ai', gold: true },
+  { key: 'alerts',    label: 'Alerts',        icon: 'alert', badge: 3 },
+  { key: 'approvals', label: 'Approvals',     icon: 'approvals' },
+  { key: 'reports',   label: 'Reports',       icon: 'reports' },
+  { key: 'analytics', label: 'Analytics',     icon: 'analytics' },
 ];
 
-const FO_NAV = [
-  { key: 'fo-dashboard', label: 'Dashboard',       icon: '⊞' },
-  { key: 'fo-tasks',     label: 'My Tasks',        icon: '☑' },
-  { key: 'fo-report',    label: 'Report Incident', icon: '⊕', gold: true },
-  { key: 'fo-alerts',    label: 'Alerts',          icon: '◬', badge: 2 },
-  { key: 'fo-reports',   label: 'Reports',         icon: '⊡' },
+const FO_NAV: NavItem[] = [
+  { key: 'fo-dashboard', label: 'Dashboard',       icon: 'grid' },
+  { key: 'fo-tasks',     label: 'My Tasks',        icon: 'tasks' },
+  { key: 'fo-report',    label: 'Report Incident', icon: 'plus', gold: true },
+  { key: 'fo-alerts',    label: 'Alerts',          icon: 'alert', badge: 2 },
+  { key: 'fo-reports',   label: 'Reports',         icon: 'reports' },
 ];
 
-const CR_NAV = [
-  { key: 'cr-command', label: 'Command Center', icon: '◈', gold: true },
-  { key: 'map',        label: 'Regional Map',   icon: '◉' },
-  { key: 'logistics',  label: 'Live Logistics', icon: '⊟' },
-  { key: 'ai',         label: 'AI Predictions', icon: '✦' },
-  { key: 'incidents',  label: 'Incidents',      icon: '◆' },
-  { key: 'routes',     label: 'Routes',         icon: '→' },
-  { key: 'alerts',     label: 'Alerts',         icon: '◬' },
-  { key: 'approvals',  label: 'Approvals',      icon: '✓' },
-  { key: 'analytics',  label: 'Analytics',      icon: '▨' },
+const CR_NAV: NavItem[] = [
+  { key: 'cr-command', label: 'Command Center', icon: 'command', gold: true },
+  { key: 'map',        label: 'Regional Map',   icon: 'map' },
+  { key: 'logistics',  label: 'Live Logistics', icon: 'truck' },
+  { key: 'ai',         label: 'AI Predictions', icon: 'ai' },
+  { key: 'incidents',  label: 'Incidents',      icon: 'incident' },
+  { key: 'routes',     label: 'Routes',         icon: 'route' },
+  { key: 'alerts',     label: 'Alerts',         icon: 'alert' },
+  { key: 'approvals',  label: 'Approvals',      icon: 'approvals' },
+  { key: 'analytics',  label: 'Analytics',      icon: 'analytics' },
 ];
 
 const TITLES: Record<string, string> = {
@@ -56,7 +61,7 @@ const TITLES: Record<string, string> = {
 };
 
 const ROLE_META: Record<Role, {
-  label: string; short: string; subtitle: string; nav: typeof NAV;
+  label: string; short: string; subtitle: string; nav: NavItem[];
   contextLabel: string; context: string;
 }> = {
   control: {
@@ -119,6 +124,35 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
     })
   );
 
+  // Move focus to the new page so keyboard and screen-reader users land on the content (skip first render).
+  const mainRef = useRef<HTMLElement>(null);
+  const firstPage = useRef(true);
+  // Land on the page heading (named), falling back to <main>; <main> is labelled by that heading.
+  useEffect(() => {
+    const heading = mainRef.current?.querySelector('h1');
+    if (heading) { heading.id = 'page-title'; heading.tabIndex = -1; }
+    if (firstPage.current) { firstPage.current = false; return; }
+    (heading ?? mainRef.current)?.focus({ preventScroll: true });
+  }, [page]);
+
+  useEffect(() => {
+    document.title = `${t(TITLES[page] ?? page)} · NER Logistics`;
+    return () => { document.title = 'NER Logistics'; };
+  }, [page, t]);
+
+  // "/" focuses the page's search field (HIG search: quick access), unless typing or a dialog is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
+      const target = e.target as HTMLElement;
+      if (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      const search = mainRef.current?.querySelector<HTMLInputElement>('input[type="search"]');
+      if (search) { e.preventDefault(); search.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   useEffect(() => subscribeToIncidents(stored => setIncidents(stored)), []);
   useEffect(() => subscribeToTasks(stored => setTasks(stored)), []);
 
@@ -173,6 +207,9 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
 
       {/* ── Sidebar — solid navy, per ops.md ─────────────────────── */}
       <aside
+        id="app-sidebar"
+        data-surface="dark"
+        inert={collapsed}
         className="flex-shrink-0 flex flex-col h-full overflow-hidden transition-all duration-200"
         style={{
           width: collapsed ? 0 : 244,
@@ -192,7 +229,7 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
             <div className="font-semibold text-sm leading-tight" style={{ color: '#FAF7F0' }}>
               {t(profile.label)}
             </div>
-            <div className="text-xs leading-tight" style={{ color: '#4A6A82' }}>
+            <div className="text-xs leading-tight" style={{ color: 'var(--sidebar-muted)' }}>
               {baseMeta.subtitle}
             </div>
           </div>
@@ -202,7 +239,7 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
         <div className="px-5 py-3 border-b flex-shrink-0"
           style={{ background: '#122840', borderColor: '#0F2538' }}>
           <div className="text-xs uppercase tracking-widest mb-0.5"
-            style={{ color: '#4A6A82', fontSize: 10 }}>
+            style={{ color: 'var(--sidebar-muted)', fontSize: 'var(--fs-caption)' }}>
             {t(baseMeta.contextLabel)}
           </div>
           <div className="font-medium text-sm" style={{ color: '#FAF7F0' }}>
@@ -210,14 +247,14 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
           </div>
           <div className="flex items-center gap-1.5 mt-1">
             <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#5DBB8A' }} />
-            <span className="text-xs" style={{ color: '#4A6A82' }}>System Online</span>
+            <span className="text-xs" style={{ color: 'var(--sidebar-muted)' }}>System Online</span>
           </div>
         </div>
 
         {/* Nav — only the active role's menu */}
-        <nav className="flex-1 overflow-y-auto px-3 py-3">
+        <nav aria-label={t('Main Menu')} className="flex-1 overflow-y-auto px-3 py-3">
           <div className="text-xs uppercase tracking-widest mb-2 px-2"
-            style={{ color: '#4A6A82', fontSize: 10 }}>
+            style={{ color: 'var(--sidebar-muted)', fontSize: 'var(--fs-caption)' }}>
             {t('Main Menu')}
           </div>
           <ul className="space-y-0.5">
@@ -227,18 +264,16 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
                 <li key={item.key}>
                   <button
                     onClick={() => setPage(item.key)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm transition-all text-left"
+                    aria-current={active ? 'page' : undefined}
+                    className="ui-navitem w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-left"
                     style={{
-                      background: active ? '#1C3F5A' : 'transparent',
-                      color: active ? '#FAF7F0' : '#8AAFC8',
+                      ...(active && { background: '#1C3F5A', color: '#FAF7F0' }),
                       borderLeft: `3px solid ${active ? '#D7A73A' : 'transparent'}`,
                     }}
-                    onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color = '#D6E4EF'; } }}
-                    onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#8AAFC8'; } }}
                   >
-                    <span className="text-sm w-4 text-center flex-shrink-0"
-                      style={{ color: (item as any).gold ? '#D7A73A' : active ? '#D7A73A' : '#4A6A82' }}>
-                      {item.icon}
+                    <span className="w-4 flex justify-center flex-shrink-0"
+                      style={{ color: item.gold || active ? '#D7A73A' : 'var(--sidebar-muted)' }}>
+                      <Icon name={item.icon} />
                     </span>
                     <span className="flex-1">{t(item.label)}</span>
                     {((item.key === 'incidents' && navBadges.incidents) ||
@@ -261,12 +296,11 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
         {/* Bottom */}
         <div className="px-3 py-3 border-t flex-shrink-0" style={{ borderColor: '#0F2538' }}>
           {[
-            { label: 'Help & Support', icon: '?' },
-            { label: 'Logout',         icon: '→' },
+            { label: 'Help & Support', icon: <HelpIcon size={16} /> },
+            { label: 'Logout',         icon: <LogOutIcon size={16} /> },
           ].map(item => (
             <button key={item.label}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-left transition-colors"
-              style={{ color: '#4A6A82' }}
+              className="ui-sidefoot w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-left"
               onClick={() => {
                 if (item.label === 'Logout') {
                   profileService.clearSession();
@@ -276,10 +310,8 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
                 if (item.label === 'Help & Support') {
                   setHelpOpen(true);
                 }
-              }}
-              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#FAF7F0')}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = '#4A6A82')}>
-              <span className="w-4 text-center">{item.icon}</span>
+              }}>
+              <span className="w-4 flex justify-center">{item.icon}</span>
               {t(item.label)}
             </button>
           ))}
@@ -304,24 +336,25 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
         >
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-8 h-8 flex items-center justify-center rounded text-lg transition-colors"
+            aria-label={collapsed ? t('Show sidebar') : t('Hide sidebar')}
+            aria-expanded={!collapsed}
+            aria-controls="app-sidebar"
+            className="ui-press ui-hover-sand w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded text-lg"
             style={{ color: '#17324D' }}
-            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(200,180,150,0.3)')}
-            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
           >
-            ≡
+            <MenuIcon />
           </button>
 
           {/*
             Breadcrumb — small-caps, exactly matching the image's
             "MYTRACKER › FIELD OFFICER ACCESS" treatment.
           */}
-          <nav className="flex items-center gap-1 min-w-0" style={{ fontSize: 10 }}>
-            <span className="uppercase tracking-widest" style={{ color: 'rgba(90,102,112,0.8)' }}>{t('NER PLATFORM')}</span>
-            <span style={{ color: 'rgba(180,162,136,0.8)', margin: '0 2px' }}>›</span>
-            <span className="uppercase tracking-widest" style={{ color: 'rgba(90,102,112,0.8)' }}>{t(profile.label).toUpperCase()}</span>
-            <span style={{ color: 'rgba(180,162,136,0.8)', margin: '0 2px' }}>›</span>
-            <span className="uppercase tracking-widest font-semibold" style={{ color: '#17324D' }}>
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1 min-w-0" style={{ fontSize: 'var(--fs-caption)' }}>
+            <span className="uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t('NER PLATFORM')}</span>
+            <span aria-hidden="true" style={{ color: 'rgba(180,162,136,0.8)', margin: '0 2px' }}>›</span>
+            <span className="uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t(profile.label).toUpperCase()}</span>
+            <span aria-hidden="true" style={{ color: 'rgba(180,162,136,0.8)', margin: '0 2px' }}>›</span>
+            <span aria-current="page" className="uppercase tracking-widest font-semibold" style={{ color: '#17324D' }}>
               {t(TITLES[page] ?? page.toUpperCase())}
             </span>
           </nav>
@@ -330,16 +363,20 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
 
           {/* Time */}
           <div className="hidden md:block uppercase tracking-widest"
-            style={{ fontSize: 10, color: 'rgba(90,102,112,0.8)' }}>
+            style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-secondary)' }}>
             {now} IST
           </div>
 
           {/* Notification */}
           {role === 'field' && (
-            <button className="relative w-8 h-8 flex items-center justify-center rounded transition-colors"
-              style={{ background: 'rgba(245,236,220,0.5)', border: '1px solid rgba(180,162,136,0.4)' }}>
-              <span style={{ color: '#17324D', fontSize: 14 }}>◬</span>
-              <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full" style={{ background: '#BE2424' }} />
+            <button type="button" onClick={() => setPage('fo-alerts')}
+              aria-label={navBadges.alerts ? `${t('Alerts')}, ${navBadges.alerts} ${t('new')}` : t('Alerts')}
+              className="ui-press relative w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded"
+              style={{ background: 'rgba(245,236,220,0.5)', border: '1px solid rgba(180,162,136,0.4)', color: '#17324D' }}>
+              <BellIcon size={16} />
+              {navBadges.alerts > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full" style={{ background: '#BE2424' }} />
+              )}
             </button>
           )}
 
@@ -357,7 +394,7 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
               background: offlineDemo ? 'rgba(240,239,237,0.8)' : 'rgba(234,242,236,0.7)',
               borderColor: offlineDemo ? 'rgba(180,162,136,0.55)' : 'rgba(100,180,140,0.4)',
               color: offlineDemo ? '#5A6670' : '#2D6B4F',
-              fontSize: 10,
+              fontSize: 'var(--fs-caption)',
               letterSpacing: '0.06em',
             }}>
             <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: offlineDemo ? '#8A9098' : '#5DBB8A' }} />
@@ -367,10 +404,10 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
           {/* Profile */}
           <button
             onClick={() => setProfileOpen(true)}
-            className="flex items-center gap-2.5 pl-1 pr-2 py-1 ml-1 rounded-full border transition-all"
-            style={{ borderColor: 'rgba(120,140,160,0.35)', background: 'rgba(255,255,255,0.45)' }}
-            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.7)')}
-            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.45)')}>
+            aria-label={`${t('Account and settings')}, ${profile.profileName}`}
+            aria-haspopup="dialog"
+            className="ui-press flex items-center gap-2.5 pl-1 pr-2 py-1 ml-1 rounded-full border bg-white/45 hover:bg-white/70 focus-visible:bg-white/70"
+            style={{ borderColor: 'rgba(120,140,160,0.35)' }}>
             {profile.avatarUrl ? (
               <img src={profile.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                 style={{ boxShadow: '0 0 0 2px rgba(215,167,58,0.55)' }} />
@@ -382,14 +419,14 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
             )}
             <span className="hidden sm:flex flex-col items-start leading-none">
               <span className="text-xs font-semibold whitespace-nowrap" style={{ color: '#16222E' }}>{profile.profileName}</span>
-              <span className="whitespace-nowrap mt-0.5" style={{ fontSize: 10, color: '#6B7885' }}>{t(profile.label)}</span>
+              <span className="whitespace-nowrap mt-0.5" style={{ fontSize: 'var(--fs-caption)', color: 'var(--text-muted)' }}>{t(profile.label)}</span>
             </span>
-            <span className="hidden sm:block text-xs" style={{ color: '#8A9098' }}>▾</span>
+            <span aria-hidden="true" className="hidden sm:block text-xs" style={{ color: 'var(--text-muted)' }}>▾</span>
           </button>
         </header>
 
         {/* Page content — transparent so the gradient shows as ambient bg */}
-        <main className="flex-1 overflow-y-auto p-6" style={{ background: 'transparent' }}>
+        <main ref={mainRef} tabIndex={-1} aria-labelledby="page-title" className="flex-1 overflow-y-auto p-6 outline-none" style={{ background: 'transparent' }}>
           {offlineDemo && (
             <div role="status" className="mb-4 rounded-lg border px-4 py-2.5 text-xs flex flex-wrap items-center gap-2"
               style={{ background: 'rgba(240,239,237,0.9)', borderColor: 'rgba(180,162,136,0.6)', color: '#3E4A55' }}>
@@ -406,13 +443,15 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
       {/* Outside the key={page} div so the conversation survives navigation. Hidden
           in the offline demo: that session has no JWT, so it would be a dead button. */}
       {!offlineDemo && <ChatPanel mlMeta={mlStatus.data} />}
+      <Toaster />
 
-      {helpOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]" onClick={() => setHelpOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl border p-5 shadow-2xl" style={{ background: '#FFFDF9', borderColor: 'rgba(180,162,136,0.5)' }} onClick={event => event.stopPropagation()}>
+      <Modal open={helpOpen} onClose={() => setHelpOpen(false)} labelledBy="help-title">
+          <div className="w-[28rem] max-w-full rounded-2xl border p-5 shadow-2xl" style={{ background: '#FFFDF9', borderColor: 'rgba(180,162,136,0.5)' }}>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-lg" style={{ color: '#17212B' }}>{t('Help & Support')}</h2>
-              <button onClick={() => setHelpOpen(false)} className="text-sm" style={{ color: '#5A6670' }}>✕</button>
+              <h2 id="help-title" className="font-semibold text-lg" style={{ color: '#17212B' }}>{t('Help & Support')}</h2>
+              <button type="button" onClick={() => setHelpOpen(false)} aria-label={t('Close help')}
+                className="flex items-center justify-center rounded min-h-[28px] min-w-[28px] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+                style={{ color: '#5A6670' }}><XIcon size={16} /></button>
             </div>
 
             <div className="space-y-3 text-sm" style={{ color: '#5A6670' }}>
@@ -427,12 +466,11 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
             </div>
 
             <div className="mt-4 flex gap-2">
-              <button onClick={() => { window.location.href = 'tel:+919876543210'; }} className="flex-1 rounded px-3 py-2 text-xs font-medium" style={{ background: '#17324D', color: 'white' }}>{t('Call Desk')}</button>
-              <button onClick={() => { window.location.href = 'mailto:ops-support@ner.gov.in'; }} className="flex-1 rounded px-3 py-2 text-xs font-medium" style={{ border: '1px solid rgba(180,162,136,0.5)', color: '#17212B', background: 'rgba(245,236,220,0.7)' }}>{t('Email Support')}</button>
+              <button onClick={() => { window.location.href = 'tel:+919876543210'; }} className="ui-press flex-1 rounded px-3 py-2 text-xs font-medium" style={{ background: '#17324D', color: 'white' }}>{t('Call Desk')}</button>
+              <button onClick={() => { window.location.href = 'mailto:ops-support@ner.gov.in'; }} className="ui-press flex-1 rounded px-3 py-2 text-xs font-medium" style={{ border: '1px solid rgba(180,162,136,0.5)', color: '#17212B', background: 'rgba(245,236,220,0.7)' }}>{t('Email Support')}</button>
             </div>
           </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Role-aware profile / settings slide-over */}
       <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} meta={profile} onSave={saveProfile} />

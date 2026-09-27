@@ -13,7 +13,7 @@
   must feel like it sits on or derives from that landscape.
 */
 @theme {
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* ── Brand primaries (ops.md spec) ──────────────────────────── */
   --color-navy:       #17324D;
@@ -38,7 +38,7 @@
   /* ── Text ───────────────────────────────────────────────────── */
   --color-text-primary:   #17212B;
   --color-text-secondary: #5A6670;
-  --color-text-muted:     #8A9098;
+  --color-text-muted:     #5C6670;
 
   /* ── Status ─────────────────────────────────────────────────── */
   --color-safe:     #2D6B4F;
@@ -53,9 +53,30 @@
   --map-sage:   #BFD0C0;
 }
 
+/* Semantic tokens for inline styles. Plain :root, not @theme: Tailwind 4 drops
+   @theme vars no utility uses. Each text token is >= 4.5:1 on its surface. */
+:root {
+  --text-muted:        #5C6670;
+  --text-secondary:    #5A6670;
+  --sidebar-muted:     #9FB8CC;
+  --status-warning-fg: #9A6512;
+  --status-high-fg:    #A84C14;
+  --status-pending-fg: #6E6225;
+  --focus-ring:        #2F6F7E;
+  --focus-ring-on-dark: #F3D58A;  /* 9.19:1 on navy #17324D */
+
+  /* Type scale in rem so browser text-size settings scale shared chrome */
+  --fs-caption:  .75rem;
+  --fs-footnote: .8125rem;
+  --fs-body:     .875rem;
+  --fs-title:    1.125rem;
+  --fs-large:    1.5rem;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px;
+}
+
 html, body, #root {
   height: 100%;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   /*
     Refined enterprise ambience — a clean cool-neutral base lifted by faint
     teal + navy glows, keeping the platform firmly in the Navy·Teal·Gold theme
@@ -128,10 +149,35 @@ button, a, [role="button"] { transition: background-color .18s ease, color .18s 
 /* Sidebar item sheen */
 .ui-navitem { transition: background-color .16s ease, color .16s ease, border-color .16s ease; }
 
-/* Focus visibility for accessibility */
-button:focus-visible, a:focus-visible, input:focus-visible {
-  outline: 2px solid rgba(47,111,126,0.6); outline-offset: 2px;
+/* Focus visibility for accessibility (unlayered, so it beats Tailwind outline-none) */
+:where(button, a, input, select, textarea, summary, [role="button"], [role="switch"], [role="tab"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--focus-ring); outline-offset: 2px;
 }
+/* The teal ring is 2.3:1 on navy; dark surfaces (sidebar, toast, profile banner) opt in to gold */
+[data-surface="dark"] :focus-visible { outline-color: var(--focus-ring-on-dark); }
+/* Page headings get programmatic focus on navigation (Shell); no ring for that */
+main h1[tabindex="-1"]:focus { outline: none; }
+
+/* Press feedback for buttons (HIG: always include a press state) */
+.ui-press { transition: transform .12s ease, background-color .12s ease, color .12s ease; }
+.ui-press:active:not(:disabled) { transform: scale(.97); }
+
+/* Sidebar items: hover and keyboard focus look the same */
+.ui-navitem:not([aria-current]) { color: #8AAFC8; }
+.ui-navitem:not([aria-current]):hover, .ui-navitem:not([aria-current]):focus-visible { background: rgba(255,255,255,0.06); color: #D6E4EF; }
+.ui-sidefoot { color: var(--sidebar-muted); }
+.ui-sidefoot:hover, .ui-sidefoot:focus-visible { color: #FAF7F0; }
+.ui-hover-sand:hover, .ui-hover-sand:focus-visible { background: rgba(200,180,150,0.3); }
+
+/* Undo result: briefly highlight the restored row */
+@keyframes ui-flash { from { background: rgba(215,167,58,0.35); } to { background: transparent; } }
+.ui-flash td { animation: ui-flash .6s ease-out; }
+
+/* Modal (components/Modal.tsx) — one native <dialog>, one scrim */
+dialog.ui-dialog { padding: 0; border: 0; background: transparent; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; }
+dialog.ui-dialog::backdrop { background: rgba(16,30,44,0.42); animation: ui-backdrop-in .25s ease both; }
+dialog.ui-dialog.is-right { margin: 0 0 0 auto; height: 100%; max-height: none; max-width: 100vw; }
+.ui-toast { animation: ui-backdrop-in .25s ease both; }
 
 /* Page / content entrance */
 @keyframes ui-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -192,22 +238,13 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .ui-stagger > *:nth-child(5) { animation-delay: .20s; }
 .ui-stagger > *:nth-child(6) { animation-delay: .24s; }
 
-/* ── Scoped polish for existing dashboard markup ──────────────────── */
-/* Top-level cards (rounded-xl + border) lift subtly on hover */
-main .rounded-xl.border { transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .24s cubic-bezier(.4,0,.2,1), border-color .2s ease; }
-main .rounded-xl.border:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -16px rgba(23,50,77,0.40); border-color: rgba(47,111,126,0.45); }
-/* Don't lift the large map card itself (it holds absolute overlays) */
-main .rounded-xl.border.overflow-hidden:hover { transform: none; box-shadow: 0 12px 28px -18px rgba(23,50,77,0.35); }
-
-/* …nor any card holding an interactive Leaflet map */
-main .rounded-xl.border:has(.leaflet-container):hover { transform: none; }
-
 /* ── Leaflet maps (MapViz) ─────────────────────────────────────────── */
 .ner-map.leaflet-container { font: inherit; font-size: 12px; background: #E9E1D2; }
 .ner-map.is-picking.leaflet-grab { cursor: crosshair; }
 .ner-map .leaflet-bar { border: 1px solid rgba(150,165,180,0.6); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(23,50,77,0.12); }
 .ner-map .leaflet-bar a { width: 32px; height: 32px; line-height: 32px; background: rgba(250,250,251,0.94); color: #17324D; border-bottom-color: rgba(150,165,180,0.45); }
 .ner-map .leaflet-bar a:hover { background: #fff; color: #2F6F7E; }
+@media (pointer: coarse) { .ner-map .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; } }
 .ner-map .leaflet-control-attribution { background: rgba(250,247,240,0.8); color: #5A6670; font-size: 10px; }
 .ner-map .leaflet-control-attribution a { color: #2F6F7E; }
 .ner-map .leaflet-popup-content-wrapper, .ner-map .leaflet-popup-tip { background: rgba(250,247,240,0.97); color: #17212B; }
@@ -217,8 +254,8 @@ main .rounded-xl.border:has(.leaflet-container):hover { transform: none; }
 .ner-pop-title { font-weight: 600; font-size: 13px; }
 .ner-pop-meta { color: #5A6670; margin: 2px 0 6px; }
 .ner-pop-row { display: flex; gap: 8px; }
-.ner-pop-row > span:first-child { width: 62px; flex-shrink: 0; color: #8A9098; }
-.ner-pop-chip { display: inline-block; padding: 0 6px; border-radius: 9999px; background: var(--c); color: #fff; font-size: 10px; font-weight: 600; }
+.ner-pop-row > span:first-child { width: 62px; flex-shrink: 0; color: var(--text-muted); }
+.ner-pop-chip { display: inline-block; padding: 0 6px; border-radius: 9999px; background: var(--c); color: #fff; font-size: 11px; font-weight: 600; }
 
 .ner-marker { background: none; border: 0; }
 .ner-inc {
@@ -233,7 +270,7 @@ main .rounded-xl.border:has(.leaflet-container):hover { transform: none; }
 .ner-veh {
   position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); white-space: nowrap;
   padding: 1px 6px; border-radius: 4px; background: rgba(250,247,240,0.95); border: 1.5px solid var(--c);
-  color: var(--c); font-size: 9px; font-weight: 700; box-shadow: 0 1px 3px rgba(23,33,43,0.2);
+  color: var(--c); font-size: 11px; font-weight: 700; box-shadow: 0 1px 3px rgba(23,33,43,0.2);
 }
 .ner-veh.is-idle { opacity: 0.8; border-style: dashed; }
 .ner-veh.is-selected { border-width: 2px; background: var(--c); color: #fff; box-shadow: 0 0 0 3px rgba(23,50,77,0.18), 0 1px 4px rgba(23,33,43,0.35); }
@@ -244,12 +281,11 @@ main .rounded-xl.border:has(.leaflet-container):hover { transform: none; }
 
 /* Table row hover — overrides inline zebra backgrounds */
 main tbody tr { transition: background-color .15s ease; }
-main tbody tr:hover td { background: rgba(47,111,126,0.08); }
+main tbody tr:hover td, main tbody tr:focus-within td { background: rgba(47,111,126,0.08); }
 
 @media (prefers-reduced-motion: reduce) {
-  main .rounded-xl.border:hover { transform: none; }
   .ui-page, .ui-skeleton, .ui-ai-processing, .ui-spin, .ui-pulse-dot, .ui-map-ring,
   .ui-gps::before, .ui-gps::after, .ui-gps-pin, .ner-inc.is-pending::after,
-  .ui-panel, .ui-backdrop, .ui-stagger > * { animation: none !important; }
-  .ui-card:hover, .ui-kpi:hover { transform: none; }
+  .ui-panel, .ui-backdrop, .ui-stagger > *, dialog.ui-dialog::backdrop, .ui-toast, .ui-flash td { animation: none !important; }
+  .ui-card:hover, .ui-kpi:hover, .ui-press:active { transform: none; }
 }

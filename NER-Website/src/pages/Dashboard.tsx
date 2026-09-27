@@ -124,7 +124,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
             </div>
             <div className="text-3xl font-bold leading-none mb-1" style={{ color: '#17212B' }}>{kpi.value}</div>
             <div className="text-xs font-medium mb-1" style={{ color: '#5A6670' }}>{kpi.label}</div>
-            <div className="text-xs" style={{ color: '#8A9098' }}>{kpi.change}</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{kpi.change}</div>
           </div>
         ))}
       </div>
@@ -141,7 +141,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
               <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>
                 {profile.region ? `${profile.region} Map` : 'District Map'}
               </h2>
-              <p className="text-xs" style={{ color: '#8A9098' }}>Live incident and route status</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Live incident and route status</p>
             </div>
             <button onClick={() => setPage('map')}
               className="text-xs font-medium px-3 py-1.5 rounded border transition-colors"
@@ -159,7 +159,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
             style={{ borderColor: 'rgba(180,162,136,0.55)' }}>
             <div>
               <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Critical Alerts</h2>
-              <p className="text-xs" style={{ color: '#8A9098' }}>{criticalAlerts.length + highAlerts.length} unacknowledged</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{criticalAlerts.length + highAlerts.length} unacknowledged</p>
             </div>
             <button onClick={() => setPage('alerts')}
               className="text-xs font-medium px-3 py-1.5 rounded border transition-colors"
@@ -175,7 +175,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
                   <span className="text-xs font-medium flex-1" style={{ color: '#17212B' }}>{alert.title}</span>
                 </div>
                 <div className="text-xs mb-1" style={{ color: '#5A6670' }}>{alert.location}</div>
-                <div className="text-xs" style={{ color: '#8A9098' }}>{alert.time} · {alert.source}</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{alert.time} · {alert.source}</div>
                 <div className="flex gap-2 mt-2">
                   <button className="text-xs px-2 py-1 rounded border"
                     style={{ borderColor: 'rgba(180,162,136,0.55)', color: '#2F6F7E' }}>View</button>
@@ -208,7 +208,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
               <thead>
                 <tr style={{ background: 'rgba(238,228,210,0.88)' }}>
                   {['ID', 'Type', 'Location', 'Severity', 'Status', 'Actions'].map(h => (
-                    <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider"
+                    <th key={h} scope="col" className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider"
                       style={{ color: '#5A6670' }}>{h}</th>
                   ))}
                 </tr>
@@ -243,7 +243,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
             <button onClick={() => setPage('ai')} className="text-xs" style={{ color: '#2F6F7E' }}>View All →</button>
           </div>
           <div className="p-4 space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: '#8A9098' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
               Risk Predictions
             </div>
             {aiInsights.riskPredictions.map(p => (
@@ -261,7 +261,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
                 </div>
                 <div className="flex items-center gap-1 mt-1">
                   <span style={{ color: '#D7A73A' }}>✦</span>
-                  <span className="text-xs" style={{ color: '#8A9098' }}>AI-generated estimate · Confidence: {p.confidence}%</span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>AI-generated estimate · Confidence: {p.confidence}%</span>
                 </div>
               </div>
             ))}
