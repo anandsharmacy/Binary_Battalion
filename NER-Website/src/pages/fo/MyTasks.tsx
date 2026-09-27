@@ -4,11 +4,14 @@ import type { Severity, TaskStatus } from '@/data/demo';
 import { Card, PageHeader, BORDER, SURFACE, SURFACE_2, TEAL } from './ui';
 import { profileService } from '@/lib/profileService';
 import { getTasks, requestTaskVerification, subscribeToTasks, updateTask } from '@/lib/taskStore';
+import { myUserId } from '@/lib/liveTable';
+
+const toStatus = (life: Life): TaskStatus => (life === 'Assigned' ? 'New' : life);
 import { notify } from '@/lib/notify';
 import EmptyState from '@/components/EmptyState';
 import { Icon } from '@/auth/Icons';
 
-type Life = 'Assigned' | 'Accepted' | 'In Progress' | 'Completed' | 'Awaiting Verification' | 'Verified' | 'Rejected';
+type Life = 'Assigned' | 'In Progress' | 'Completed' | 'Awaiting Verification' | 'Verified' | 'Rejected';
 
 interface FOTask {
   id: string; title: string; location: string; priority: Severity;
@@ -17,10 +20,10 @@ interface FOTask {
 
 const TABS = ['All', 'Pending', 'In Progress', 'Completed', 'Overdue'] as const;
 // Completed → request District Officer verification; only the District Officer can move it to Verified/Rejected.
-const NEXT: Record<Life, Life | null> = { Assigned: 'Accepted', Accepted: 'In Progress', 'In Progress': 'Completed', Completed: 'Awaiting Verification', 'Awaiting Verification': null, Verified: null, Rejected: null };
-const ACTION_LABEL: Record<Life, string> = { Assigned: 'Accept Task', Accepted: 'Start Task', 'In Progress': 'Complete Task', Completed: 'Awaiting Verification', 'Awaiting Verification': 'Awaiting District Officer Verification', Verified: 'Verified', Rejected: 'Rejected by District Officer' };
+const NEXT: Record<Life, Life | null> = { Assigned: 'In Progress', 'In Progress': 'Completed', Completed: 'Awaiting Verification', 'Awaiting Verification': null, Verified: null, Rejected: null };
+const ACTION_LABEL: Record<Life, string> = { Assigned: 'Start Task', 'In Progress': 'Complete Task', Completed: 'Awaiting Verification', 'Awaiting Verification': 'Awaiting District Officer Verification', Verified: 'Verified', Rejected: 'Rejected by District Officer' };
 const DONE: Life[] = ['Completed', 'Awaiting Verification', 'Verified'];
-const DONE_MESSAGE: Partial<Record<Life, string>> = { Assigned: 'Task accepted.', Accepted: 'Task started.', 'In Progress': 'Task completed.', Completed: 'Marked complete. Awaiting District Officer review.' };
+const DONE_MESSAGE: Partial<Record<Life, string>> = { Assigned: 'Task started.', 'In Progress': 'Task completed.', Completed: 'Marked complete. Awaiting District Officer review.' };
 
 function toFieldTask(task: ReturnType<typeof getTasks>[number]): FOTask {
   return {
@@ -37,7 +40,7 @@ function toFieldTask(task: ReturnType<typeof getTasks>[number]): FOTask {
 
 export default function MyTasks() {
   const [tab, setTab] = useState<typeof TABS[number]>('All');
-  const [tasks, setTasks] = useState<FOTask[]>(() => getTasks().filter(task => task.assignedOfficer === 'FO-1024').map(toFieldTask));
+  const [tasks, setTasks] = useState<FOTask[]>(() => getTasks().filter(task => task.assignedTo === myUserId()).map(toFieldTask));
   const [busy, setBusy] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [profile, setProfile] = useState(() => {
@@ -73,7 +76,7 @@ export default function MyTasks() {
     return unsubscribe;
   }, []);
 
-  useEffect(() => subscribeToTasks(stored => setTasks(stored.filter(task => task.assignedOfficer === 'FO-1024').map(toFieldTask))), []);
+  useEffect(() => subscribeToTasks(stored => setTasks(stored.filter(task => task.assignedTo === myUserId()).map(toFieldTask))), []);
 
   const advance = (id: string) => {
     const t = tasks.find(x => x.id === id);
@@ -82,7 +85,7 @@ export default function MyTasks() {
     setTimeout(() => {
       setTasks(ts => ts.map(x => x.id === id ? { ...x, status: NEXT[x.status]! } : x));
       if (t.status === 'Completed') requestTaskVerification(id);
-      else updateTask(id, { status: NEXT[t.status]! });
+      else updateTask(id, { status: toStatus(NEXT[t.status]!) });
       setBusy(null);
       const prev = t.status;
       notify(DONE_MESSAGE[prev] ?? 'Task updated.', {
@@ -90,7 +93,7 @@ export default function MyTasks() {
           label: 'Undo',
           run: () => {
             setTasks(ts => ts.map(x => x.id === id ? { ...x, status: prev } : x));
-            updateTask(id, { status: (prev === 'Assigned' ? 'New' : prev) as TaskStatus });
+            updateTask(id, { status: toStatus(prev) });
             notify('Change undone.');
           },
         },
@@ -103,7 +106,7 @@ export default function MyTasks() {
   const filtered = tasks.filter(t => {
     if (needle && ![t.id, t.title].some(v => v.toLowerCase().includes(needle))) return false;
     if (tab === 'All') return true;
-    if (tab === 'Pending') return t.status === 'Assigned' || t.status === 'Accepted';
+    if (tab === 'Pending') return t.status === 'Assigned';
     if (tab === 'In Progress') return t.status === 'In Progress';
     if (tab === 'Completed') return DONE.includes(t.status);
     if (tab === 'Overdue') return t.due.startsWith('Yesterday') && !DONE.includes(t.status);
@@ -119,7 +122,7 @@ export default function MyTasks() {
         {TABS.map(t => {
           const active = tab === t;
           const count = t === 'All' ? tasks.length : tasks.filter(x =>
-            t === 'Pending' ? (x.status === 'Assigned' || x.status === 'Accepted') :
+            t === 'Pending' ? x.status === 'Assigned' :
             t === 'In Progress' ? x.status === 'In Progress' :
             t === 'Completed' ? DONE.includes(x.status) :
             x.due.startsWith('Yesterday') && !DONE.includes(x.status)

@@ -30,8 +30,14 @@ export interface Incident {
   riskScore: number;
   affectedLogistics: number;
   estimatedDisruption: string;
+  landmark?: string | null;
+  roadCondition?: RoadCondition | null;
   evidence?: IncidentEvidence[];
 }
+
+/** Same three options on the web form and the Flutter app (road_incidents.road_condition). */
+export const ROAD_CONDITIONS = ['Fully Blocked', 'Partially Accessible', 'Passable with caution'] as const;
+export type RoadCondition = typeof ROAD_CONDITIONS[number];
 
 export interface Route {
   id: string;
@@ -115,10 +121,3 @@ export const fieldOfficers: FieldOfficer[] = [];
 export const tasks: Task[] = [];
 
 export const alerts: Alert[] = [];
-
-export const aiInsights = {
-  riskPredictions: [],
-  logisticsPredictions: [],
-  routeRecommendations: [],
-  resourceRecommendations: [],
-};

@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { Card, CardHeader, PageHeader, BORDER, SURFACE_2, NAVY, TEAL } from './ui';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
 import { getTasks, subscribeToTasks } from '@/lib/taskStore';
+import { myUserId } from '@/lib/liveTable';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 import { Icon } from '@/auth/Icons';
 
-const OFFICER_ID = 'FO-1024';
 
 function formatTaskReport(task: ReturnType<typeof getTasks>[number]) {
   return {
@@ -22,12 +22,12 @@ export default function Reports() {
   const [gen, setGen] = useState<'idle' | 'busy' | 'done'>('idle');
   const [selectedReport, setSelectedReport] = useState<ReturnType<typeof formatTaskReport> | null>(null);
   const [manualReport, setManualReport] = useState('');
-  const [tasks, setTasks] = useState(() => getTasks().filter(task => task.assignedOfficer === OFFICER_ID));
-  const [incidentCount, setIncidentCount] = useState(() => getIncidents().filter(incident => incident.reportedBy === 'Field Officer').length);
+  const [tasks, setTasks] = useState(() => getTasks().filter(task => task.assignedTo === myUserId()));
+  const [incidentCount, setIncidentCount] = useState(() => getIncidents().filter(incident => incident.reporterId === myUserId()).length);
   const generate = () => { setGen('busy'); setTimeout(() => setGen('done'), 1300); };
 
-  useEffect(() => subscribeToTasks(stored => setTasks(stored.filter(task => task.assignedOfficer === OFFICER_ID))), []);
-  useEffect(() => subscribeToIncidents(stored => setIncidentCount(stored.filter(incident => incident.reportedBy === 'Field Officer').length)), []);
+  useEffect(() => subscribeToTasks(stored => setTasks(stored.filter(task => task.assignedTo === myUserId()))), []);
+  useEffect(() => subscribeToIncidents(stored => setIncidentCount(stored.filter(incident => incident.reporterId === myUserId()).length)), []);
   useEffect(() => {
     if (!selectedReport) {
       setManualReport('');

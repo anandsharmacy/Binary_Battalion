@@ -93,6 +93,8 @@ body {
   border: 1px solid rgba(91, 100, 114, 0.32);
   border-radius: 6px;
   background-color: rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   -webkit-backdrop-filter: url(#liquidGlass) blur(2px);
   backdrop-filter: url(#liquidGlass) blur(2px);
   color: #0E2A47;
@@ -111,6 +113,8 @@ body {
 .glass-field.has-toggle { padding-right: 40px; }
 .glass-field:focus {
   background-color: rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
   -webkit-backdrop-filter: url(#liquidGlassStrong) blur(3px);
   backdrop-filter: url(#liquidGlassStrong) blur(3px);
   box-shadow:
@@ -129,6 +133,8 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 10px;
   background-color: rgba(255, 255, 255, 0.4);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
   -webkit-backdrop-filter: url(#liquidGlass) blur(7px);
   backdrop-filter: url(#liquidGlass) blur(7px);
   box-shadow:

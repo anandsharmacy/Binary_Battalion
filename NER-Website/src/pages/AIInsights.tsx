@@ -1,11 +1,26 @@
-import { aiInsights } from '@/data/demo';
-import { LoadingRows, MlNotice, MlRouteSummary, MlTopAlertsPanel } from '@/components/MlRisk';
-import { fetchRoutesSummary, useMlQuery } from '@/lib/ml';
+import { LoadingRows, MlCaveat, MlNotice, MlRouteSummary, MlTopAlertsPanel } from '@/components/MlRisk';
+import {
+  districtsAtRisk, fetchRecentRuns, fetchRoutesSummary, fetchTopAlerts, formatMlDate, TIER_LABEL, tierTrend,
+  topShare, useMlQuery,
+} from '@/lib/ml';
 import { profileService } from '@/lib/profileService';
-import { SeverityBadge } from '@/components/StatusBadge';
+import { SURFACE, SURFACE_2, BORDER as border } from './fo/ui';
+
+const card = { background: SURFACE, borderColor: border };
+const cardHead = { borderColor: border, background: SURFACE_2 };
+
+function Empty({ text }: { text: string }) {
+  return (
+    <div className="text-xs rounded-lg border px-3 py-2" style={{ color: '#5A6670', borderColor: border }}>{text}</div>
+  );
+}
 
 export default function AIInsights() {
   const routes = useMlQuery(fetchRoutesSummary);
+  // Both re-run when a new batch lands (useMlQuery subscribes to ml_batch_runs).
+  const runs = useMlQuery(fetchRecentRuns);
+  const top = useMlQuery(() => fetchTopAlerts('alert'));
+  const districts = top.data ? districtsAtRisk(top.data.rows ?? []) : [];
   // The database enforces this too; the button only appears where it can succeed.
   const role = profileService.getCurrentRole();
   const canPromote = role === 'control' || role === 'district';
@@ -19,7 +34,7 @@ export default function AIInsights() {
             <h1 className="font-semibold text-2xl" style={{ color: '#17212B' }}>AI Insights</h1>
           </div>
           <p className="text-sm mt-0.5" style={{ color: '#5A6670' }}>
-            AI-generated predictions and recommendations
+            Model predictions, refreshed when a new run is published
           </p>
         </div>
         <div className="text-xs px-3 py-1.5 rounded border" style={{ background: '#FEF8E6', borderColor: '#F5DFA8', color: '#C4861A' }}>
@@ -33,14 +48,14 @@ export default function AIInsights() {
         <span className="text-lg" style={{ color: '#D7A73A' }}>✦</span>
         <p className="text-xs" style={{ color: '#5A6670' }}>
           <strong>Road Disruption Risk</strong> is the NER model's daily ranking of every corridor road segment by
-          rainfall-triggered disruption risk. The other panels are demo data. All of it is advisory, not confirmed
+          rainfall-triggered disruption risk. Every panel here is derived from that model's published runs. All of it is advisory, not confirmed
           fact — District Officer discretion required.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Road disruption risk — live model output (sih-ml), kept apart from demo estimates */}
+        {/* Road disruption risk — live model output (sih-ml) */}
         <div className="rounded-xl border shadow-sm lg:col-span-2" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
           <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Road Disruption Risk</h2>
@@ -57,6 +72,9 @@ export default function AIInsights() {
               {routes.loading && !routes.data && !routes.signedOut && (
                 <LoadingRows label="Loading routes…" />
               )}
+              {routes.data && routes.data.state !== 'unavailable' && (routes.data.routes ?? []).length === 0 && (
+                <Empty text="No planned routes are loaded yet, so there is no per-route risk to show." />
+              )}
               <div className="space-y-3">
                 {(routes.data?.routes ?? []).map((r) => (
                   <div key={r.route_id} className="rounded-lg border p-3" style={{ borderColor: 'rgba(180,162,136,0.55)' }}>
@@ -69,90 +87,66 @@ export default function AIInsights() {
           </div>
         </div>
 
-        {/* Logistics Predictions */}
-        <div className="rounded-xl border shadow-sm" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
-          <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
-            <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Logistics Delay Predictions</h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Demo data · not model output</p>
+        {/* Trend vs previous published batch (ml_batch_runs) */}
+        <div className="rounded-xl border shadow-sm" style={card}>
+          <div className="px-4 py-3 border-b" style={cardHead}>
+            <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Risk Trend</h2>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Model output · latest published run vs the one before</p>
           </div>
           <div className="p-4 space-y-3">
-            <div className="rounded p-3 border" style={{ background: '#FEF8E6', borderColor: '#F5DFA8' }}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <span style={{ color: '#D7A73A' }}>✦</span>
-                <span className="text-sm font-semibold" style={{ color: '#17212B' }}>
-                  {aiInsights.logisticsPredictions.reduce((a, b) => a + b.convoys, 0)} logistics routes may experience delays
-                </span>
-              </div>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Based on current incident data and weather forecasts</p>
-            </div>
-            {aiInsights.logisticsPredictions.map(p => (
-              <div key={p.route} className="rounded-lg border p-3" style={{ borderColor: 'rgba(180,162,136,0.55)' }}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-semibold text-sm" style={{ color: '#17212B' }}>Route {p.route}</span>
-                  <span className="font-semibold text-xs" style={{ color: p.probability > 80 ? '#BE2424' : '#C4861A' }}>
-                    {p.probability}% probability
+            <MlNotice signedOut={runs.signedOut} error={runs.error} />
+            {runs.loading && !runs.data && !runs.signedOut && <LoadingRows label="Loading runs…" />}
+            {runs.data && runs.data.length === 0 && <Empty text="No ML run has been published yet." />}
+            {runs.data && runs.data.length > 0 && (
+              <>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {runs.data[0].mode === 'replay' ? 'Replay' : 'Live'} run for {formatMlDate(runs.data[0].score_date)}
+                  {runs.data[1] ? ` vs ${runs.data[1].mode} run for ${formatMlDate(runs.data[1].score_date)}` : ' · no earlier run to compare'}
+                </p>
+                {tierTrend(runs.data).map((t) => (
+                  <div key={t.tier} className="rounded-lg border p-3 flex items-center justify-between" style={{ borderColor: border }}>
+                    <span className="text-sm" style={{ color: '#17212B' }}>{TIER_LABEL[t.tier]}</span>
+                    <span className="text-sm font-semibold tabular-nums" style={{ color: '#17212B' }}>
+                      {t.now.toLocaleString('en-IN')} segments
+                      {t.delta != null && (
+                        <span className="ml-2 text-xs" style={{ color: t.delta > 0 ? '#BE2424' : t.delta < 0 ? '#2D6B4F' : '#5A6670' }}>
+                          {t.delta > 0 ? '▲' : t.delta < 0 ? '▼' : '='} {Math.abs(t.delta).toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Where to send field verification first: top alert segments grouped by district */}
+        <div className="rounded-xl border shadow-sm" style={card}>
+          <div className="px-4 py-3 border-b" style={cardHead}>
+            <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Districts to Verify First</h2>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Model output · today's highest-risk segments by nearest district</p>
+          </div>
+          <div className="p-4 space-y-3">
+            <MlNotice signedOut={top.signedOut} error={top.error} meta={top.data} />
+            {top.loading && !top.data && !top.signedOut && <LoadingRows label="Loading districts…" />}
+            {top.data && top.data.state !== 'unavailable' && districts.length === 0 && (
+              <Empty text="No high-risk segments in today's run." />
+            )}
+            {districts.map((d) => (
+              <div key={d.district} className="rounded-lg border p-3" style={{ borderColor: border }}>
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm" style={{ color: '#17212B' }}>
+                    {d.district}{d.state ? `, ${d.state}` : ''}
                   </span>
+                  <span className="text-xs" style={{ color: '#BE2424' }}>{topShare(d.max_percentile)}</span>
                 </div>
-                <div className="grid grid-cols-2 text-xs gap-1">
-                  <div style={{ color: 'var(--text-muted)' }}>Affected convoys: <span style={{ color: '#17212B' }} className="font-medium">{p.convoys}</span></div>
-                  <div style={{ color: 'var(--text-muted)' }}>Est. delay: <span style={{ color: '#C25A1A' }} className="font-semibold">{p.estimatedDelay}</span></div>
-                  <div className="col-span-2" style={{ color: 'var(--text-muted)' }}>Cause: <span style={{ color: '#17212B' }}>{p.cause}</span></div>
-                </div>
+                <p className="text-xs mt-1" style={{ color: '#5A6670' }}>
+                  {d.n_segments} of today's top {top.data?.rows.length} alert segments. Send a field check before rerouting.
+                </p>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Route Recommendations */}
-        <div className="rounded-xl border shadow-sm" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
-          <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
-            <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Route Recommendations</h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Demo data · not model output</p>
-          </div>
-          <div className="p-4 space-y-3">
-            {aiInsights.routeRecommendations.map((rec, i) => (
-              <div key={i} className="rounded-lg border p-3" style={{ background: '#EAF4EE', borderColor: '#A8D4B8' }}>
-                <div className="flex items-start gap-2 mb-2">
-                  <span style={{ color: '#2D6B4F', fontSize: 16 }}>✓</span>
-                  <div>
-                    <div className="text-sm font-semibold" style={{ color: '#17212B' }}>
-                      {rec.from} → {rec.to}
-                    </div>
-                    <div className="text-xs" style={{ color: '#5A6670' }}>{rec.reason}</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 text-xs gap-1">
-                  <div style={{ color: 'var(--text-muted)' }}>Benefit: <span style={{ color: '#2D6B4F' }}>{rec.savings}</span></div>
-                  <div style={{ color: 'var(--text-muted)' }}>Add. distance: <span style={{ color: '#17212B' }}>{rec.additionalDistance}</span></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Resource Recommendations */}
-        <div className="rounded-xl border shadow-sm" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
-          <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
-            <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Resource Recommendations</h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Demo data · not model output</p>
-          </div>
-          <div className="p-4 space-y-3">
-            {aiInsights.resourceRecommendations.map((rec, i) => (
-              <div key={i} className="rounded-lg border p-3 flex gap-3" style={{ borderColor: 'rgba(180,162,136,0.55)' }}>
-                <span className="text-lg flex-shrink-0" style={{ color: '#D7A73A' }}>✦</span>
-                <div>
-                  <p className="text-xs leading-relaxed" style={{ color: '#17212B' }}>{rec}</p>
-                  <div className="flex gap-2 mt-2">
-                    <button className="text-xs px-2 py-1 rounded border"
-                      style={{ background: '#17324D', color: 'white', borderColor: '#17324D' }}>
-                      Act on Recommendation
-                    </button>
-                    <button className="text-xs px-2 py-1 rounded border"
-                      style={{ borderColor: 'rgba(180,162,136,0.55)', color: '#5A6670' }}>Dismiss</button>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <MlCaveat meta={top.data} />
           </div>
         </div>
       </div>

@@ -100,11 +100,16 @@ export class MlSignedOutError extends Error {
   }
 }
 
-async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
+async function signedInClient() {
   if (!supabase) throw new MlSignedOutError();
   const { data: session } = await supabase.auth.getSession();
   if (!session.session) throw new MlSignedOutError();
-  const { data, error } = await supabase.rpc(fn, args ?? {});
+  return supabase;
+}
+
+async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
+  const client = await signedInClient();
+  const { data, error } = await client.rpc(fn, args ?? {});
   if (error) throw new Error(error.message);
   return data as T;
 }
@@ -130,6 +135,66 @@ export const fetchMlSegmentsInBbox = (
 
 export const promoteMlAlert = (segmentId: string, runId?: number, note?: string) =>
   rpc<string>('promote_ml_alert', { p_segment_id: segmentId, p_run_id: runId ?? null, p_note: note ?? null });
+
+// ── Derived insights (AI Insights page, dashboard card) ──────────────────────
+
+export interface MlRunRow {
+  id: number;
+  score_date: string;
+  mode: 'live' | 'replay';
+  tier_counts: Partial<Record<MlTier, number>>;
+  published_at: string | null;
+}
+
+/** The two most recent published batches (RLS: any active user may read ml_batch_runs). */
+export async function fetchRecentRuns(): Promise<MlRunRow[]> {
+  const client = await signedInClient();
+  const { data, error } = await client
+    .from('ml_batch_runs')
+    .select('id, score_date, mode, tier_counts, published_at')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(2);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as MlRunRow[];
+}
+
+export interface TierTrend {
+  tier: 'alert' | 'human_review';
+  now: number;
+  prev: number | null;
+  delta: number | null;
+}
+
+export function tierTrend(runs: MlRunRow[]): TierTrend[] {
+  const [cur, prev] = runs;
+  if (!cur) return [];
+  return (['alert', 'human_review'] as const).map((tier) => {
+    const now = cur.tier_counts?.[tier] ?? 0;
+    const before = prev ? prev.tier_counts?.[tier] ?? 0 : null;
+    return { tier, now, prev: before, delta: before == null ? null : now - before };
+  });
+}
+
+export interface DistrictRisk {
+  district: string;
+  state: string | null;
+  n_segments: number;
+  max_percentile: number;
+}
+
+/** Groups today's top alert segments by nearest district, most segments first. */
+export function districtsAtRisk(rows: TopAlertRow[]): DistrictRisk[] {
+  const by = new Map<string, DistrictRisk>();
+  for (const r of rows) {
+    const key = r.near_district ?? 'Unmapped area';
+    const d = by.get(key) ?? { district: key, state: r.near_state, n_segments: 0, max_percentile: 0 };
+    d.n_segments += 1;
+    d.max_percentile = Math.max(d.max_percentile, r.risk_percentile);
+    by.set(key, d);
+  }
+  return [...by.values()].sort((a, b) => b.n_segments - a.n_segments || b.max_percentile - a.max_percentile);
+}
 
 // ── Realtime: one shared subscription; every ML view refetches on a new day ──
 

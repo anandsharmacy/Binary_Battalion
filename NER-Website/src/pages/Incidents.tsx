@@ -8,6 +8,7 @@ import { incidents as initialIncidents } from '@/data/demo';
 import type { Incident, IncidentStatus } from '@/data/demo';
 import { getIncidents, subscribeToIncidents, updateIncident } from '@/lib/incidentStore';
 import { createTaskFromIncident } from '@/lib/taskStore';
+import { listFieldOfficers, officerLabel } from '@/lib/liveTable';
 import { Icon } from '@/auth/Icons';
 
 const tabs: { key: string; label: string; filter: (i: Incident) => boolean }[] = [
@@ -30,17 +31,19 @@ function getTimelineStep(status: IncidentStatus) {
 
 function IncidentDetail({ inc, onClose, onVerify, onAssign, onStatusChange, onCreateTask }: {
   inc: Incident; onClose: () => void;
-  onVerify: (id: string) => void; onAssign: (id: string) => void;
+  onVerify: (id: string) => void; onAssign: (id: string, officerId: string) => void;
   onStatusChange: (id: string, status: IncidentStatus) => void;
   onCreateTask: (id: string) => void;
 }) {
   const step = getTimelineStep(inc.status);
   const [preview, setPreview] = useState<{ name: string; type: string; dataUrl: string } | null>(null);
   const mapIncidents = useMemo(() => [inc], [inc]);
+  const [officers, setOfficers] = useState<{ id: string; label: string }[]>([]);
+  useEffect(() => { void listFieldOfficers().then(setOfficers); }, []);
         return (
           <Modal open onClose={onClose} labelledBy="incident-title" side="right">
-            <div className="h-full w-[42rem] max-w-full overflow-y-auto shadow-2xl"
-        style={{ background: 'rgba(250,247,240,0.82)', borderLeft: '1px solid rgba(180,162,136,0.55)' }}>
+            <div className="ui-glass h-full w-[42rem] max-w-full overflow-y-auto shadow-2xl"
+        style={{ borderLeft: '1px solid rgba(180,162,136,0.55)' }}>
         <div className="px-5 py-4 border-b flex items-start justify-between"
                 style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.96)' }}>
           <div>
@@ -137,7 +140,7 @@ function IncidentDetail({ inc, onClose, onVerify, onAssign, onStatusChange, onCr
                   <button type="button" key={`${inc.id}-${file.name}`} onClick={() => setPreview(file)}
                     className="rounded-lg border overflow-hidden text-left" style={{ borderColor: 'rgba(180,162,136,0.55)' }}>
                     {file.type.startsWith('image/') ? (
-                      <img src={file.dataUrl} alt={file.name} className="h-32 w-full object-cover" />
+                      <img src={file.dataUrl || undefined} alt={file.name} className="h-32 w-full object-cover" />
                     ) : (
                       <div className="h-32 flex items-center justify-center" style={{ background: 'rgba(238,228,210,0.88)', color: '#17324D' }}>Video evidence</div>
                     )}
@@ -158,25 +161,19 @@ function IncidentDetail({ inc, onClose, onVerify, onAssign, onStatusChange, onCr
             </Modal>
           )}
 
-          {/* AI Risk */}
-          <div className="rounded-lg border p-3" style={{ background: '#FEF8E6', borderColor: '#F5DFA8' }}>
-            <div className="flex items-center gap-1.5 mb-2">
-              <span style={{ color: '#D7A73A' }}>✦</span>
-              <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5A6670' }}>AI Risk Assessment</h3>
-            </div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="text-3xl font-bold" style={{ color: '#17212B' }}>{inc.riskScore}</div>
-              <div>
-                <div className="text-xs" style={{ color: '#5A6670' }}>Risk Score / 100</div>
-                <SeverityBadge severity={inc.riskScore > 75 ? 'CRITICAL' : inc.riskScore > 50 ? 'HIGH' : inc.riskScore > 25 ? 'MODERATE' : 'LOW'} />
+          {/* Field assessment, as entered by the reporting officer */}
+          <div className="rounded-lg border divide-y" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(250,247,240,0.82)' }}>
+            {[
+              ['Road Condition', inc.roadCondition ?? 'Not assessed'],
+              ['Nearby Landmark', inc.landmark || '—'],
+              ['Vehicles Affected', String(inc.affectedLogistics)],
+              ['Estimated Blockage', inc.estimatedDisruption],
+            ].map(([k, v]) => (
+              <div key={k} className="flex px-3 py-2 text-xs gap-3" style={{ borderColor: 'rgba(180,162,136,0.3)' }}>
+                <span className="w-36 flex-shrink-0 font-medium" style={{ color: '#5A6670' }}>{k}</span>
+                <span style={{ color: '#17212B' }}>{v}</span>
               </div>
-              <div className="flex-1 ml-2">
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(180,162,136,0.55)' }}>
-                  <div style={{ width: `${inc.riskScore}%`, background: inc.riskScore > 75 ? '#BE2424' : '#E07840' }} className="h-full rounded-full" />
-                </div>
-              </div>
-            </div>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>AI-generated estimate · Affected logistics: {inc.affectedLogistics} convoys · {inc.estimatedDisruption}</p>
+            ))}
           </div>
 
           {/* Actions */}
@@ -190,11 +187,12 @@ function IncidentDetail({ inc, onClose, onVerify, onAssign, onStatusChange, onCr
                   ✓ Verify Incident
                 </button>
               )}
-              <button onClick={() => { onAssign(inc.id); }}
+              <select aria-label="Assign officer" value="" onChange={e => { if (e.target.value) onAssign(inc.id, e.target.value); }}
                 className="text-xs font-medium px-3 py-2 rounded border"
                 style={{ background: '#2F6F7E', color: 'white', borderColor: '#2F6F7E' }}>
-                Assign Officer
-              </button>
+                <option value="">{officers.length ? 'Assign Officer…' : 'No field officers in scope'}</option>
+                {officers.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
               <button onClick={() => { onCreateTask(inc.id); }} className="text-xs font-medium px-3 py-2 rounded border"
                 style={{ borderColor: 'rgba(180,162,136,0.55)', color: '#5A6670' }}>
                 Create Task
@@ -253,7 +251,8 @@ export default function Incidents() {
     notify(message, { action: { label: 'Undo', run: () => { apply(id, undo); setFlashId(id); notify('Change undone.'); } } });
   };
   const handleVerify = (id: string) => change(id, { verification: 'Verified', status: 'ACTIVE' }, 'Incident verified and marked Active.');
-  const handleAssign = (id: string) => change(id, { assignedOfficer: 'FO-101', status: 'ACTIVE' }, 'Assigned to FO-101.');
+  const handleAssign = (id: string, officerId: string) =>
+    change(id, { assignedOfficer: officerId, status: 'ACTIVE' }, `Assigned to ${officerLabel(officerId)}.`);
   const handleStatusChange = (id: string, status: IncidentStatus) => change(id, { status },
     status === 'ESCALATED' ? 'Incident marked Escalated.' : status === 'RESOLVED' ? 'Incident marked Resolved.' : `Status set to ${status}.`);
   const handleCreateTask = (id: string) => {

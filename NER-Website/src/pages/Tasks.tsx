@@ -5,9 +5,7 @@ import { notify, useRowFlash } from '@/lib/notify';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 import { Icon } from '@/auth/Icons';
-
-const BORDER = 'rgba(180,162,136,0.55)';
-const SURFACE = 'rgba(250,247,240,0.82)';
+import { SURFACE, BORDER } from './fo/ui';
 
 const tabKeys = ['All', 'New', 'In Progress', 'Completed', 'Escalated'];
 

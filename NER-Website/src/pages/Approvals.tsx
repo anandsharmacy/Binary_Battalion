@@ -4,6 +4,7 @@ import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 import { Icon } from '@/auth/Icons';
 import { notify } from '@/lib/notify';
+import { SURFACE, BORDER } from './fo/ui';
 
 // Pending sign-ups the signed-in officer may review. The database decides who sees what
 // (pending_accounts / review_account): district officers get field officers of their own
@@ -25,9 +26,7 @@ const ROLE_LABELS: Record<string, string> = {
   control_room: 'Control Room',
 };
 
-const BORDER = 'rgba(180,162,136,0.55)';
 const spinner = <span aria-hidden="true" className="ui-spin">↻</span>;
-const SURFACE = 'rgba(250,247,240,0.82)';
 
 export default function Approvals() {
   const [accounts, setAccounts] = useState<PendingAccount[]>([]);

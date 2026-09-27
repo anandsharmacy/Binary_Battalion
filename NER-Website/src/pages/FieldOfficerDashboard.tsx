@@ -8,6 +8,8 @@ import { PLACES } from '@/data/geo';
 import { profileService } from '@/lib/profileService';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
 import { getTasks, subscribeToTasks, updateTask } from '@/lib/taskStore';
+import { myUserId } from '@/lib/liveTable';
+import { SURFACE, SURFACE_2, BORDER } from './fo/ui';
 
 /* ────────────────────────────────────────────────────────────────
    Field Officer Dashboard
@@ -17,10 +19,6 @@ import { getTasks, subscribeToTasks, updateTask } from '@/lib/taskStore';
    – navy / teal / gold accents, shared badge + score components
    Only the information architecture is field-operations oriented.
 ──────────────────────────────────────────────────────────────── */
-
-const SURFACE = 'rgba(250,247,240,0.82)';
-const BORDER = 'rgba(180,162,136,0.55)';
-const SURFACE_2 = 'rgba(238,228,210,0.88)';
 
 interface FOTask {
   id: string;
@@ -69,17 +67,14 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 }
 
 export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: string) => void }) {
-  const [priorityTasks, setPriorityTasks] = useState<FOTask[]>(() => getTasks().filter(task => task.assignedOfficer === 'FO-1024').map(toDashboardTask));
+  const [priorityTasks, setPriorityTasks] = useState<FOTask[]>(() => getTasks().filter(task => task.assignedTo === myUserId()).map(toDashboardTask));
   const [incidents, setIncidents] = useState(() => getIncidents());
 
   useEffect(() => subscribeToIncidents(stored => setIncidents(stored)), []);
 
   const areaIncidentRecords = useMemo(() => incidents.filter(incident =>
-    ['PENDING_VERIFICATION', 'ACTIVE', 'ESCALATED', 'UNDER_REVIEW'].includes(incident.status) &&
-    (incident.assignedOfficer === 'FO-1024' ||
-      incident.reportedBy === 'FO-1024' ||
-      incident.location.toLowerCase().includes('dimapur') ||
-      incident.route.toLowerCase().includes('nh-'))
+    // RLS already limits incidents to the officer's district.
+    ['PENDING_VERIFICATION', 'ACTIVE', 'ESCALATED', 'UNDER_REVIEW'].includes(incident.status)
   ), [incidents]);
 
   const areaIncidents = useMemo(() => {
@@ -144,7 +139,7 @@ export default function FieldOfficerDashboard({ setPage }: { setPage?: (p: strin
     return unsubscribe;
   }, []);
 
-  useEffect(() => subscribeToTasks(tasks => setPriorityTasks(tasks.filter(task => task.assignedOfficer === 'FO-1024').map(toDashboardTask))), []);
+  useEffect(() => subscribeToTasks(tasks => setPriorityTasks(tasks.filter(task => task.assignedTo === myUserId()).map(toDashboardTask))), []);
 
   const startTask = (id: string) => {
     const task = priorityTasks.find(item => item.id === id);

@@ -20,6 +20,8 @@ const MAP_LAYERS: { key: MapLayer; label: string }[] = [
   { key: 'routes', label: 'Routes' },
   { key: 'logistics', label: 'Logistics' },
   { key: 'ml', label: 'ML road risk' },
+  { key: 'flood', label: 'Flood hazard' },
+  { key: 'landslide', label: 'Landslides' },
 ];
 
 function riskColor(s: number) {
@@ -33,7 +35,7 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
   const [analyzing, setAnalyzing] = useState(false);
   const [refresh, setRefresh] = useState<'idle' | 'busy' | 'done'>('idle');
   const [updatedTick, setUpdatedTick] = useState('just now');
-  const [mapLayers, setMapLayers] = useState<Record<MapLayer, boolean>>({ risk: true, incidents: true, routes: true, logistics: true, ml: false });
+  const [mapLayers, setMapLayers] = useState<Record<MapLayer, boolean>>({ risk: true, incidents: true, routes: true, logistics: true, ml: false, flood: false, landslide: false });
   const [reviewIncident, setReviewIncident] = useState<StoredIncident | null>(null);
 
   useEffect(() => subscribeToIncidents(stored => setIncidents(stored)), []);
@@ -537,8 +539,8 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
       {/* Incident Review Slide-over / Modal */}
       {reviewIncident && (
         <Modal open onClose={() => setReviewIncident(null)} labelledBy="review-title" side="right">
-          <div className="h-full w-[42rem] max-w-full overflow-y-auto shadow-2xl p-6 flex flex-col gap-5"
-            style={{ background: '#FAF7F0', borderLeft: '1px solid rgba(180,162,136,0.55)' }}>
+          <div className="ui-glass h-full w-[42rem] max-w-full overflow-y-auto shadow-2xl p-6 flex flex-col gap-5"
+            style={{ borderLeft: '1px solid rgba(180,162,136,0.55)' }}>
             <div className="flex items-start justify-between border-b pb-4" style={{ borderColor: 'rgba(180,162,136,0.4)' }}>
               <div>
                 <div className="font-mono text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Incident ID: {reviewIncident.id}</div>
@@ -574,7 +576,10 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
                 ['Assigned Officer', reviewIncident.assignedOfficer ?? '— Unassigned'],
                 ['GPS Coordinates', reviewIncident.gpsCoords ?? 'Not specified'],
                 ['Verification Status', reviewIncident.verification ?? 'Pending'],
-                ['Estimated Disruption', reviewIncident.estimatedDisruption ?? 'Under assessment'],
+                ['Nearby Landmark', reviewIncident.landmark || '—'],
+                ['Road Condition', reviewIncident.roadCondition ?? 'Not assessed'],
+                ['Vehicles Affected', String(reviewIncident.affectedLogistics ?? 0)],
+                ['Estimated Blockage', reviewIncident.estimatedDisruption ?? 'Not estimated'],
               ].map(([label, val], idx) => (
                 <div key={label} className="flex items-center px-4 py-2.5 text-xs border-b last:border-b-0"
                   style={{ background: idx % 2 === 0 ? 'rgba(250,247,240,0.82)' : 'rgba(238,228,210,0.55)', borderColor: 'rgba(180,162,136,0.3)' }}>
