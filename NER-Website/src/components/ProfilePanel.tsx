@@ -3,6 +3,7 @@ import Modal from '@/components/Modal';
 import { XIcon, EyeIcon, EyeOffIcon, Icon } from '@/auth/Icons';
 import { profileService, type ProfileMeta } from '@/lib/profileService';
 import { LANGUAGES, useLanguage, type LanguageCode } from '@/lib/i18n';
+import { supabase } from '@/lib/supabase';
 
 export type { ProfileMeta };
 
@@ -418,49 +419,66 @@ function SecuritySection() {
 
 // ─── notifications section ────────────────────────────────────────────────────
 
+type Prefs = { push: boolean; email: boolean; sms: boolean };
+
+// Stored per user in public.notification_prefs (RLS: own row). No row yet = the server defaults.
 function NotificationsSection() {
-  const [n, setN] = useState({
-    criticalAlerts: true, incidentUpdates: true, taskUpdates: true,
-    aiAlerts: true, emailNotif: false, smsNotif: false, dailyDigest: true,
-  });
+  const [n, setN] = useState<Prefs | null>(null);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase) { setError('Notifications are not configured on this build.'); return; }
+    supabase.from('notification_prefs').select('push,email,sms').maybeSingle().then(({ data, error: e }) => {
+      if (e) setError(e.message);
+      else setN(data ?? { push: true, email: true, sms: false });
+    });
+  }, []);
 
   const savePrefs = async () => {
-    await new Promise(r => setTimeout(r, 600));
+    if (!supabase || !n) return;
+    setSaving(true); setError(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error: e } = user
+      ? await supabase.from('notification_prefs').upsert({ user_id: user.id, ...n })
+      : { error: { message: 'Sign in to save preferences.' } };
+    setSaving(false);
+    if (e) { setError(e.message); return; }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const rows: { key: keyof typeof n; icon: string; label: string; sub: string }[] = [
-    { key: 'criticalAlerts', icon: '◬', label: 'Critical Alerts', sub: 'Push for P1/P2 incidents' },
-    { key: 'incidentUpdates', icon: '◆', label: 'Incident Updates', sub: 'Status changes and escalations' },
-    { key: 'taskUpdates', icon: '☑', label: 'Task Updates', sub: 'Assigned and completed tasks' },
-    { key: 'aiAlerts', icon: '✦', label: 'AI Alerts', sub: 'Predictive risk and anomaly flags' },
-    { key: 'emailNotif', icon: '✉', label: 'Email Notifications', sub: 'To registered gov email' },
-    { key: 'smsNotif', icon: '☎', label: 'SMS Notifications', sub: 'To registered mobile number' },
-    { key: 'dailyDigest', icon: '⊡', label: 'Daily Digest', sub: 'Summary at 8:00 AM IST' },
+  const rows: { key: keyof Prefs; icon: string; label: string; sub: string }[] = [
+    { key: 'push', icon: '◬', label: 'Push Notifications', sub: 'Alerts on your phone (moderate and above)' },
+    { key: 'email', icon: '✉', label: 'Email Notifications', sub: 'High and critical alerts to your account email' },
+    { key: 'sms', icon: '☎', label: 'SMS Notifications', sub: 'Critical alerts to your registered mobile' },
   ];
 
   return (
     <div className="p-4 space-y-3">
-      <div className="space-y-1">
-        {rows.map(r => (
-          <div key={r.key} className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-black/[0.03]">
-            <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0"
-              style={{ background: SURFACE_2, color: NAVY }}>{r.icon}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium" style={{ color: '#16222E' }}>{r.label}</div>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.sub}</div>
+      {!n && !error && <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Loading…</div>}
+      {n && (
+        <div className="space-y-1">
+          {rows.map(r => (
+            <div key={r.key} className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-black/[0.03]">
+              <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0"
+                style={{ background: SURFACE_2, color: NAVY }}>{r.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium" style={{ color: '#16222E' }}>{r.label}</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.sub}</div>
+              </div>
+              <Toggle on={n[r.key]} onChange={v => setN(s => s && ({ ...s, [r.key]: v }))} label={r.label} />
             </div>
-            <Toggle on={n[r.key]} onChange={v => setN(s => ({ ...s, [r.key]: v }))} label={r.label} />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       {saved && <SuccessBanner msg="Notification preferences saved." />}
-      <button onClick={savePrefs}
-        className="w-full py-2 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5"
+      {error && <ErrorBanner msg={error} />}
+      <button onClick={savePrefs} disabled={!n || saving}
+        className="w-full py-2 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5 disabled:opacity-60"
         style={{ background: NAVY, color: 'white' }}>
-        Save Preferences
+        {saving ? 'Saving…' : 'Save Preferences'}
       </button>
     </div>
   );
@@ -542,7 +560,7 @@ export default function ProfilePanel({ open, onClose, meta, onSave }: { open: bo
   return (
     <Modal open={open} onClose={onClose} labelledBy="account-title" side="right">
       <div className="ui-panel relative h-full w-[28rem] max-w-full flex flex-col shadow-2xl"
-        style={{ background: 'rgba(247,249,251,0.98)', backdropFilter: 'blur(14px)', borderLeft: `1px solid ${BORDER}` }}>
+        style={{ background: 'rgba(247,249,251,0.85)', WebkitBackdropFilter: 'blur(14px)', backdropFilter: 'blur(14px)', borderLeft: `1px solid ${BORDER}` }}>
 
         {/* Header banner */}
         <div data-surface="dark" className="relative px-5 pt-5 pb-6 flex-shrink-0"

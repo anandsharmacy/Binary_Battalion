@@ -1,31 +1,63 @@
 import type { Severity, Task, TaskStatus } from '@/data/demo';
 import { profileService } from '@/lib/profileService';
+import { notify } from '@/lib/notify';
+import { LiveTable, myUserId, officerLabel, resolveOfficer } from '@/lib/liveTable';
+import { SEVERITY_FROM_DB, SEVERITY_TO_DB, formatTime, getIncidents } from '@/lib/incidentStore';
 
-export type StoredTask = Task;
+export type StoredTask = Task & { assignedTo: string | null; districtId: string | null };
 
-const STORAGE_KEY = 'ner-tasks';
-const AVG_RESPONSE_KEY = 'ner-avg-response-minutes';
 // Post-completion states still count as completed work; a rejected verification does not.
 export const COMPLETED_TASK_STATUSES: TaskStatus[] = ['Completed', 'Awaiting Verification', 'Verified'];
-const TASKS_CHANGED = 'ner-tasks-changed';
 
-function readTasks(): StoredTask[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const value = window.localStorage.getItem(STORAGE_KEY);
-    if (!value) return [];
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+/** public.field_tasks (see supabase/migrations/20260927100060_field_reporting.sql). Timestamps are server-set. */
+interface TaskRow {
+  id: string;
+  client_id?: string | null;
+  incident_id?: string | null;
+  title: string;
+  description?: string | null;
+  location_text?: string | null;
+  priority: string;
+  status: string;
+  assigned_to?: string | null;
+  district_id?: string | null;
+  created_by?: string | null;
+  deadline?: string | null;
+  verification_note?: string | null;
+  assigned_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_at?: string;
 }
 
-function publish(tasks: StoredTask[]) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  getAvgResponseMinutes(tasks); // side effect: saves the average when valid, so it outlives later task changes
-  window.dispatchEvent(new CustomEvent(TASKS_CHANGED, { detail: tasks }));
+const STATUS_TO_DB: Record<TaskStatus, string> = {
+  New: 'new', 'In Progress': 'in_progress', Completed: 'completed', Escalated: 'escalated',
+  'Awaiting Verification': 'awaiting_verification', Verified: 'verified', Rejected: 'rejected',
+};
+const STATUS_FROM_DB = Object.fromEntries(Object.entries(STATUS_TO_DB).map(([k, v]) => [v, k])) as Record<string, TaskStatus>;
+
+function toTask(row: TaskRow): StoredTask {
+  return {
+    id: row.id,
+    title: row.title,
+    location: row.location_text ?? '',
+    priority: SEVERITY_FROM_DB[row.priority] ?? 'MODERATE',
+    assignedOfficer: officerLabel(row.assigned_to),
+    created: formatTime(row.created_at),
+    deadline: row.deadline ? formatTime(row.deadline) : 'Pending review',
+    status: STATUS_FROM_DB[row.status] ?? 'New',
+    relatedIncident: row.incident_id ?? null,
+    description: row.description ?? '',
+    verificationNote: row.verification_note ?? undefined,
+    assignedAt: row.assigned_at ?? undefined,
+    startedAt: row.started_at ?? undefined,
+    completedAt: row.completed_at ?? undefined,
+    assignedTo: row.assigned_to ?? null,
+    districtId: row.district_id ?? null,
+  };
 }
+
+const table = new LiveTable<TaskRow, StoredTask>('field_tasks', toTask);
 
 /** Mean minutes from start (else assignment) to completion over completed, officer-handled tasks; null when none are valid. */
 export function averageResponseMinutes(tasks: StoredTask[]): number | null {
@@ -36,27 +68,13 @@ export function averageResponseMinutes(tasks: StoredTask[]): number | null {
   return durations.length ? Math.round(durations.reduce((sum, ms) => sum + ms, 0) / durations.length / 60000) : null;
 }
 
-/** Fresh average from the given tasks (and remembered), else the last valid one saved; null only if there has never been one. */
-export function getAvgResponseMinutes(tasks: StoredTask[] = readTasks()): number | null {
-  const fresh = averageResponseMinutes(tasks);
-  try {
-    if (fresh !== null) {
-      window.localStorage.setItem(AVG_RESPONSE_KEY, String(fresh));
-      return fresh;
-    }
-    const saved = parseFloat(window.localStorage.getItem(AVG_RESPONSE_KEY) ?? '');
-    return Number.isFinite(saved) ? saved : null;
-  } catch {
-    return fresh;
-  }
+/** Average response time over the given tasks (all visible tasks by default); null when there is none yet. */
+export function getAvgResponseMinutes(tasks: StoredTask[] = getTasks()): number | null {
+  return averageResponseMinutes(tasks);
 }
 
-function createTaskId() {
-  return `TSK-${Date.now().toString().slice(-6)}`;
-}
-
-export function getTasks() {
-  return readTasks();
+export function getTasks(): StoredTask[] {
+  return table.items();
 }
 
 export function createTaskFromIncident(input: {
@@ -67,59 +85,58 @@ export function createTaskFromIncident(input: {
   description: string;
   assignedOfficer?: string;
 }) {
-  const task: StoredTask = {
-    id: createTaskId(),
+  // Default assignee: whoever the incident is already assigned to.
+  const assignee = input.assignedOfficer !== undefined
+    ? resolveOfficer(input.assignedOfficer)
+    : getIncidents().find(i => i.id === input.incidentId)?.assignedTo ?? null;
+  if (assignee === undefined) notify(`Unknown officer "${input.assignedOfficer}"; task left unassigned.`, { tone: 'error' });
+  const id = crypto.randomUUID();
+  const row: TaskRow = {
+    id,
+    client_id: id,
+    incident_id: input.incidentId,
     title: input.title,
-    location: input.location,
-    priority: input.priority,
-    assignedOfficer: input.assignedOfficer ?? 'FO-1024',
-    assignedAt: new Date().toISOString(),
-    created: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
-    deadline: 'Pending review',
-    status: 'New',
-    relatedIncident: input.incidentId,
     description: input.description,
+    location_text: input.location,
+    priority: SEVERITY_TO_DB[input.priority],
+    status: 'new',
+    assigned_to: assignee ?? null,
+    created_by: myUserId(),
+    created_at: new Date().toISOString(),
   };
-  publish([...readTasks(), task]);
-  return task;
+  void table.insert(row, 'Task');
+  return toTask(row);
 }
 
 export function updateTask(id: string, updates: Partial<Pick<Task, 'status' | 'assignedOfficer'>>) {
-  // Verification outcomes only come from reviewTask (District Officer).
+  const current = table.row(id);
+  // Verification outcomes only come from reviewTask (District Officer). Undoing a review is allowed (DB checks the role).
   if (updates.status === 'Verified' || updates.status === 'Rejected') return;
-  const now = new Date().toISOString();
-  publish(readTasks().map(task => {
-    if (task.id !== id) return task;
-    const next = { ...task, ...updates };
-    if (updates.assignedOfficer && updates.assignedOfficer !== task.assignedOfficer) next.assignedAt = now;
-    if (updates.status === 'In Progress' && !task.startedAt) next.startedAt = now;
-    if (updates.status === 'Completed' && !task.completedAt) next.completedAt = now;
-    return next;
-  }));
+  const patch: Partial<TaskRow> = {};
+  if (updates.status) patch.status = STATUS_TO_DB[updates.status];
+  if (updates.assignedOfficer !== undefined) {
+    const officer = resolveOfficer(updates.assignedOfficer);
+    if (officer === undefined) { notify(`Unknown officer "${updates.assignedOfficer}".`, { tone: 'error' }); return; }
+    patch.assigned_to = officer;
+  }
+  if (current) void table.update(id, patch, 'Task update');
 }
 
 /** Field Officer: send a completed task to the District Officer for verification. */
 export function requestTaskVerification(id: string) {
-  publish(readTasks().map(task => task.id === id && task.status === 'Completed'
-    ? { ...task, status: 'Awaiting Verification' }
-    : task));
+  if (table.row(id)?.status === 'completed') void table.update(id, { status: 'awaiting_verification' }, 'Verification request');
 }
 
 /** District Officer only: approve or reject a pending verification request. */
 export function reviewTask(id: string, approve: boolean, reason = '') {
   if (profileService.getCurrentRole() !== 'district') return;
-  publish(readTasks().map(task => task.id === id && task.status === 'Awaiting Verification'
-    ? { ...task, status: approve ? 'Verified' : 'Rejected', verificationNote: approve ? undefined : reason.trim() || undefined }
-    : task));
+  if (table.row(id)?.status !== 'awaiting_verification') return;
+  void table.update(id, {
+    status: approve ? 'verified' : 'rejected',
+    verification_note: approve ? null : reason.trim() || null,
+  }, 'Review');
 }
 
 export function subscribeToTasks(listener: (tasks: StoredTask[]) => void) {
-  if (typeof window === 'undefined') return () => {};
-  const notify = () => listener(readTasks());
-  window.addEventListener(TASKS_CHANGED, notify);
-  window.addEventListener('storage', notify);
-  return () => {
-    window.removeEventListener(TASKS_CHANGED, notify);
-    window.removeEventListener('storage', notify);
-  };
+  return table.subscribe(listener);
 }

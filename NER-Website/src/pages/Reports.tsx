@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { getIncidents } from '@/lib/incidentStore';
-import { getTasks } from '@/lib/taskStore';
+import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
+import { getTasks, subscribeToTasks } from '@/lib/taskStore';
 import { profileService } from '@/lib/profileService';
 
 const reportTypes = [
@@ -76,8 +76,10 @@ function createCsvContent(rows: Array<Record<string, string | number>>) {
 }
 
 export default function Reports() {
-  const incidents = getIncidents();
-  const tasks = getTasks();
+  const [incidents, setIncidents] = useState(() => getIncidents());
+  const [tasks, setTasks] = useState(() => getTasks());
+  useEffect(() => subscribeToIncidents(setIncidents), []);
+  useEffect(() => subscribeToTasks(setTasks), []);
   const [reportType, setReportType] = useState(reportTypes[0]);
   const [generated, setGenerated] = useState(false);
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);

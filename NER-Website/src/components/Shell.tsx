@@ -11,6 +11,7 @@ import { getTasks, subscribeToTasks } from '@/lib/taskStore';
 import { useLanguage } from '@/lib/i18n';
 import Modal from '@/components/Modal';
 import { Toaster } from '@/lib/notify';
+import { useAlerts } from '@/lib/alerts';
 import { MenuIcon, BellIcon, XIcon, LogOutIcon, HelpIcon, Icon, type IconName } from '@/auth/Icons';
 
 type NavItem = { key: string; label: string; icon: IconName; badge?: number; gold?: boolean };
@@ -168,23 +169,16 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
     return unsubscribe;
   }, []);
 
+  const { alerts: liveAlerts } = useAlerts();
   const navBadges = useMemo(() => {
     const activeIncidents = incidents.filter(item => !['RESOLVED', 'CLOSED'].includes(item.status));
     const activeTasks = tasks.filter(item => !['Completed', 'Closed'].includes(item.status));
-    const urgentIncidents = incidents.filter(item => ['PENDING_VERIFICATION', 'ACTIVE', 'ESCALATED', 'UNDER_REVIEW'].includes(item.status));
-    const districtAlerts = urgentIncidents.length + tasks.filter(task => ['New', 'In Progress', 'Escalated'].includes(task.status)).length;
-    const fieldAlerts = tasks.filter(task => task.assignedOfficer === 'FO-1024' && ['New', 'In Progress', 'Escalated'].includes(task.status)).length + incidents.filter(incident =>
-      ['PENDING_VERIFICATION', 'ACTIVE', 'ESCALATED', 'UNDER_REVIEW'].includes(incident.status) &&
-      (incident.assignedOfficer === 'FO-1024' || incident.reportedBy === 'FO-1024' || /dimapur/i.test(incident.location) || /nh-/i.test(incident.route))
-    ).length;
-    const controlAlerts = incidents.filter(item => ['CRITICAL', 'HIGH'].includes(item.severity) && !['RESOLVED', 'CLOSED'].includes(item.status)).length + tasks.filter(task => ['CRITICAL', 'HIGH'].includes(task.priority) && !['Completed', 'Closed'].includes(task.status)).length;
-
     return {
       incidents: activeIncidents.length,
       tasks: activeTasks.length,
-      alerts: role === 'field' ? fieldAlerts : role === 'control' ? controlAlerts : districtAlerts,
+      alerts: liveAlerts.filter(a => a.status === 'active').length,
     };
-  }, [incidents, tasks, role]);
+  }, [incidents, tasks, liveAlerts]);
 
   const saveProfile = async (updates: Partial<ProfileMeta>) => {
     const result = await profileService.updateProfile(updates);
@@ -368,14 +362,16 @@ export default function Shell({ role, page, setPage, onSwitchRole, onLogout, ses
           </div>
 
           {/* Notification */}
-          {role === 'field' && (
-            <button type="button" onClick={() => setPage('fo-alerts')}
+          {(
+            <button type="button" onClick={() => setPage(role === 'field' ? 'fo-alerts' : 'alerts')}
               aria-label={navBadges.alerts ? `${t('Alerts')}, ${navBadges.alerts} ${t('new')}` : t('Alerts')}
               className="ui-press relative w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded"
               style={{ background: 'rgba(245,236,220,0.5)', border: '1px solid rgba(180,162,136,0.4)', color: '#17324D' }}>
               <BellIcon size={16} />
               {navBadges.alerts > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full" style={{ background: '#BE2424' }} />
+                <span aria-hidden="true" className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold leading-4 text-center text-white" style={{ background: '#BE2424' }}>
+                  {navBadges.alerts > 99 ? '99+' : navBadges.alerts}
+                </span>
               )}
             </button>
           )}

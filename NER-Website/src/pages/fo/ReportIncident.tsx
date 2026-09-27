@@ -1,10 +1,10 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import MapViz from '@/components/MapViz';
 import { SeverityBadge } from '@/components/StatusBadge';
-import type { Severity } from '@/data/demo';
+import { ROAD_CONDITIONS, type RoadCondition, type Severity } from '@/data/demo';
 import { PLACES, formatCoords, parseCoords, type LatLng } from '@/data/geo';
 import { addIncident, type IncidentEvidence } from '@/lib/incidentStore';
-import { Card, PageHeader, BORDER, SURFACE_2, NAVY, TEAL, GOLD } from './ui';
+import { Card, PageHeader, BORDER, SURFACE_2, NAVY, TEAL } from './ui';
 
 const STEPS = ['Incident Type', 'Location', 'Evidence', 'Details', 'Review', 'Submit'];
 
@@ -30,32 +30,25 @@ function Label({ children, htmlFor, id }: { children: React.ReactNode; htmlFor?:
 export default function ReportIncident({ setPage, presetType }: { setPage?: (p: string) => void; presetType?: string }) {
   const [step, setStep] = useState(0);
   const [type, setType] = useState<string | null>(presetType ?? null);
-  const [severity, setSeverity] = useState<Severity>('HIGH');
+  const [severity, setSeverity] = useState<Severity>('MODERATE');
   const [desc, setDesc] = useState('');
-  const [route, setRoute] = useState('NH-29');
-  const [locName, setLocName] = useState('Dimapur–Kohima Route');
+  const [route, setRoute] = useState('');
+  const [locName, setLocName] = useState('');
   const [landmark, setLandmark] = useState('');
+  const [roadCondition, setRoadCondition] = useState<RoadCondition | ''>('');
+  const [vehicles, setVehicles] = useState('');
+  const [blockage, setBlockage] = useState('');
   const [gps, setGps] = useState<string | null>(null);
   const [gpsBusy, setGpsBusy] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [manualLocation, setManualLocation] = useState(false);
   const [evidence, setEvidence] = useState<IncidentEvidence[]>([]);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
-  const [aiState, setAiState] = useState<'idle' | 'analyzing' | 'done'>('idle');
   const [submit, setSubmit] = useState<'idle' | 'submitting' | 'done'>('idle');
   const [incidentId, setIncidentId] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const locationRequestRef = useRef(0);
   const reverseGeocodeControllerRef = useRef<AbortController | null>(null);
-
-  // Run the AI assessment when arriving at the Details step with enough info.
-  useEffect(() => {
-    if (step === 3 && aiState === 'idle') {
-      setAiState('analyzing');
-      const t = setTimeout(() => setAiState('done'), 1800);
-      return () => clearTimeout(t);
-    }
-  }, [step, aiState]);
 
   const captureGps = () => {
     if (!navigator.geolocation) {
@@ -163,6 +156,10 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
         description: desc,
         gpsCoords: gps ?? '',
         evidence,
+        landmark,
+        roadCondition: roadCondition || null,
+        vehiclesAffected: vehicles === '' ? null : Math.max(0, Math.floor(Number(vehicles))),
+        estimatedBlockage: blockage,
       });
       setIncidentId(incident.id);
       setSubmit('done');
@@ -175,7 +172,7 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
 
   const canNext =
     step === 0 ? !!type :
-    step === 1 ? !!gps :
+    step === 1 ? !!gps || !!locName.trim() :
     true;
 
   return (
@@ -309,7 +306,7 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
           </div>
         )}
 
-        {/* STEP 4 — Details + AI Assessment */}
+        {/* STEP 4 — Details */}
         {step === 3 && (
           <div className="space-y-4">
             <h3 className="font-semibold text-base" style={{ color: '#17212B' }}>Incident Details</h3>
@@ -326,51 +323,20 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
                 </div>
               </div>
               <div><Label htmlFor="ri-road">Road Condition</Label>
-                <select id="ri-road" className="w-full rounded px-3 py-2 text-sm" style={field}>
-                  <option>Partially Accessible</option><option>Fully Blocked</option><option>Passable with caution</option>
+                <select id="ri-road" value={roadCondition} onChange={e => setRoadCondition(e.target.value as RoadCondition | '')} className="w-full rounded px-3 py-2 text-sm" style={field}>
+                  <option value="">Not assessed</option>
+                  {ROAD_CONDITIONS.map(c => <option key={c}>{c}</option>)}
                 </select></div>
               <div><Label htmlFor="ri-vehicles">Vehicles Affected</Label>
-                <input id="ri-vehicles" type="number" min={0} placeholder="Number of vehicles" className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
+                <input id="ri-vehicles" type="number" min={0} value={vehicles} onChange={e => setVehicles(e.target.value)} placeholder="Number of vehicles" className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
               <div><Label htmlFor="ri-blockage">Estimated Blockage</Label>
-                <input id="ri-blockage" placeholder="e.g. 4–6 hours" className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
+                <input id="ri-blockage" value={blockage} onChange={e => setBlockage(e.target.value)} placeholder="e.g. 4–6 hours" className="w-full rounded px-3 py-2 text-sm" style={field} /></div>
               <div className="col-span-2"><Label htmlFor="ri-desc">Description</Label>
                 <textarea id="ri-desc" value={desc} onChange={e => setDesc(e.target.value)} rows={3}
                   placeholder="Describe conditions, accessibility and any immediate action required…"
                   className="w-full rounded px-3 py-2 text-sm resize-none" style={field} /></div>
             </div>
 
-            {/* AI assessment */}
-            <div className="rounded-lg border p-4" style={{ background: '#FEF8E6', borderColor: '#F5DFA8' }}>
-              <div className="flex items-center gap-1.5 mb-3">
-                <span style={{ color: GOLD }}>✦</span>
-                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#C4861A' }}>AI Incident Assessment</span>
-                <span className="text-xs ml-auto px-1.5 py-0.5 rounded" style={{ background: '#F5DFA8', color: '#7A6D2A' }}>AI-generated estimate</span>
-              </div>
-              {aiState === 'analyzing' ? (
-                <div className="flex items-center gap-2 py-3">
-                  <span className="inline-block animate-spin" style={{ color: GOLD }}>✦</span>
-                  <span className="text-sm" style={{ color: '#5A6670' }}>Analyzing incident conditions…</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                  {[
-                    { l: 'Risk Level', v: 'HIGH', c: '#C25A1A' },
-                    { l: 'Priority', v: '82/100', c: '#17212B' },
-                    { l: 'Confidence', v: '89%', c: '#2D6B4F' },
-                    { l: 'Affected Route', v: route, c: '#2F6F7E' },
-                    { l: 'Logistics Impact', v: 'HIGH', c: '#BE2424' },
-                  ].map(m => (
-                    <div key={m.l}>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }} className="uppercase tracking-wide mb-0.5">{m.l}</div>
-                      <div className="text-sm font-bold" style={{ color: m.c }}>{m.v}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
-                AI estimates support your judgement — they are not guaranteed facts. Verify on-site conditions.
-              </p>
-            </div>
           </div>
         )}
 
@@ -382,11 +348,14 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
               {[
                 ['Incident Type', type ?? '—'],
                 ['Severity', severity],
-                ['Location', `${locName} · ${route}`],
-                ['GPS', gps ?? '—'],
+                ['Location', [locName, route].filter(Boolean).join(' · ') || '—'],
+                ['Nearby Landmark', landmark || '—'],
+                ['GPS', gps ?? 'Not captured'],
+                ['Road Condition', roadCondition || 'Not assessed'],
+                ['Vehicles Affected', vehicles || '—'],
+                ['Estimated Blockage', blockage || '—'],
                 ['Evidence', `${evidence.length} file(s) attached`],
                 ['Description', desc || '—'],
-                ['AI Risk / Priority', 'HIGH · 82/100 (89% confidence)'],
               ].map(([k, v]) => (
                 <div key={k} className="flex px-4 py-2.5 text-sm gap-4">
                   <span className="w-40 flex-shrink-0 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{k}</span>
@@ -417,8 +386,8 @@ export default function ReportIncident({ setPage, presetType }: { setPage?: (p: 
                 <div className="rounded-lg border divide-y my-4 text-left" style={{ borderColor: BORDER, background: SURFACE_2 }}>
                   {[
                     ['Incident ID', incidentId],
-                    ['Status', 'Under Review'],
-                    ['District Officer Notification', 'Sent ✓'],
+                    ['Status', 'Pending verification'],
+                    ['Visible to', 'Your District Officer and the Control Room'],
                   ].map(([k, v]) => (
                     <div key={k} className="flex px-4 py-2.5 text-sm justify-between">
                       <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{k}</span>

@@ -9,6 +9,8 @@ import {
   getDistrictsForState,
   matchLocationToDistrictAndState,
 } from '@/data/northeastDistricts';
+import { networkAccessibility, useCorridorAccessibility } from '@/lib/accessibility';
+import { profileService } from '@/lib/profileService';
 
 type Place = { district?: string; state?: string };
 
@@ -78,8 +80,13 @@ export default function Analytics() {
   const [incidents, setIncidents] = useState(() => getIncidents());
   const [tasks, setTasks] = useState(() => getTasks());
 
-  const [selectedState, setSelectedState] = useState<string>('ALL');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('ALL');
+  // District / field officers are locked to their own district; the server scopes incidents the same way.
+  const profile = profileService.getProfile();
+  const lockedDistrict = profileService.getCurrentRole() !== 'control' && profile.district ? profile.district : null;
+  const [selectedState, setSelectedState] = useState<string>(() => (lockedDistrict && profile.state) || 'ALL');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>(() => lockedDistrict ?? 'ALL');
+  const access = useCorridorAccessibility(lockedDistrict ? null : selectedDistrict === 'ALL' ? null : selectedDistrict);
+  const corridorRows = useMemo(() => access.data?.routes ?? [], [access.data]);
 
   useEffect(() => subscribeToIncidents(stored => setIncidents(stored)), []);
   useEffect(() => subscribeToTasks(stored => setTasks(stored)), []);
@@ -129,20 +136,13 @@ export default function Analytics() {
     });
   }, [filteredIncidents, lastNineDays]);
 
-  const routeAccessibility = useMemo(() => {
-    const routeMap = new Map<string, { accessible: number; restricted: number }>();
-
-    filteredIncidents.forEach(incident => {
-      const routeName = incident.route || 'Local Access Route';
-      const existing = routeMap.get(routeName) ?? { accessible: 72, restricted: 28 };
-      const riskPenalty = incident.severity === 'CRITICAL' ? 26 : incident.severity === 'HIGH' ? 18 : incident.severity === 'MODERATE' ? 10 : 4;
-      const accessible = Math.max(18, Math.min(96, existing.accessible - riskPenalty));
-      const restricted = Math.max(4, 100 - accessible);
-      routeMap.set(routeName, { accessible, restricted });
-    });
-
-    return Array.from(routeMap.entries()).slice(0, 4).map(([name, value]) => ({ name, ...value }));
-  }, [filteredIncidents]);
+  // Server-computed (get_corridor_accessibility): least accessible routes first.
+  const routeAccessibility = useMemo(() => corridorRows
+    .filter(r => r.accessibility_pct !== null)
+    .sort((a, b) => a.accessibility_pct! - b.accessibility_pct!)
+    .slice(0, 8)
+    .map(r => ({ name: `${r.route_number} · ${r.status}`, accessible: Math.round(r.accessibility_pct!), restricted: Math.round(100 - r.accessibility_pct!) })),
+  [corridorRows]);
 
   const responseTime = useMemo(() => {
     return lastNineDays.map(date => {
@@ -172,9 +172,7 @@ export default function Analytics() {
   const summary = useMemo(() => {
     const totalIncidents = filteredIncidents.length;
     const avgResponseMinutes = averageResponseMinutes(filteredTasks);
-    const accessibility = routeAccessibility.length
-      ? Math.round(routeAccessibility.reduce((sum, route) => sum + route.accessible, 0) / routeAccessibility.length)
-      : 100;
+    const accessibility = networkAccessibility(corridorRows);
     const onTimeLogistics = filteredTasks.length ? Math.round((filteredTasks.filter(task => COMPLETED_TASK_STATUSES.includes(task.status)).length / filteredTasks.length) * 100) : 100;
     const unresolved = filteredIncidents.filter(item => ['PENDING_VERIFICATION', 'ACTIVE', 'UNDER_REVIEW', 'ESCALATED'].includes(item.status)).length;
     return {
@@ -184,7 +182,7 @@ export default function Analytics() {
       onTimeLogistics,
       unresolved,
     };
-  }, [filteredIncidents, routeAccessibility, filteredTasks]);
+  }, [filteredIncidents, corridorRows, filteredTasks]);
 
   const districtTable = useMemo(() => {
     let districtsToDisplay = NORTHEAST_DISTRICTS;
@@ -205,12 +203,9 @@ export default function Analytics() {
       const incCount = distIncidents.length;
       const avgResp = averageResponseMinutes(distTasks);
 
-      const access = incCount > 0
-        ? distIncidents.reduce((acc, i) => {
-            const penalty = i.severity === 'CRITICAL' ? 26 : i.severity === 'HIGH' ? 18 : i.severity === 'MODERATE' ? 10 : 4;
-            return Math.max(18, acc - penalty);
-          }, 100)
-        : 100;
+      // Routes this district's open incidents currently block or restrict (server data).
+      const routesHit = corridorRows.filter(r => r.incidents.some(i => i.district === district));
+      const blocked = routesHit.filter(r => r.incidents.some(i => i.district === district && i.blocks)).length;
 
       const delays = distTasks.filter(t => ['New', 'In Progress', 'Escalated'].includes(t.status)).length;
       const unresolved = distIncidents.filter(i => ['PENDING_VERIFICATION', 'ACTIVE', 'UNDER_REVIEW', 'ESCALATED'].includes(i.status)).length;
@@ -220,7 +215,8 @@ export default function Analytics() {
         state,
         incidents: incCount,
         response: avgResp === null ? '—' : `${avgResp} min`,
-        access: `${access}%`,
+        routesHit: routesHit.length,
+        routesBlocked: blocked,
         delays,
         unresolved,
       };
@@ -232,7 +228,7 @@ export default function Analytics() {
       if (a.state !== b.state) return a.state.localeCompare(b.state);
       return a.district.localeCompare(b.district);
     });
-  }, [placedIncidents, placedTasks, selectedState, selectedDistrict]);
+  }, [placedIncidents, placedTasks, selectedState, selectedDistrict, corridorRows]);
 
   return (
     <div className="space-y-5 max-w-screen-2xl">
@@ -249,6 +245,7 @@ export default function Analytics() {
               id="state-filter"
               value={selectedState}
               onChange={e => handleStateChange(e.target.value)}
+              disabled={Boolean(lockedDistrict)}
               className="text-xs px-3 py-1.5 rounded-lg border font-medium cursor-pointer"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(250,247,240,0.82)', color: '#17212B' }}
             >
@@ -265,6 +262,7 @@ export default function Analytics() {
               id="district-filter"
               value={selectedDistrict}
               onChange={e => setSelectedDistrict(e.target.value)}
+              disabled={Boolean(lockedDistrict)}
               className="text-xs px-3 py-1.5 rounded-lg border font-medium cursor-pointer"
               style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(250,247,240,0.82)', color: '#17212B' }}
             >
@@ -281,7 +279,9 @@ export default function Analytics() {
         {[
           { label: 'Total Incidents (7d)', value: String(summary.totalIncidents), delta: `${incidentTrend.reduce((sum, val) => sum + val, 0)} in last 9 days`, up: true },
           { label: 'Avg Response Time', value: summary.avgResponseMinutes === null ? '—' : `${summary.avgResponseMinutes} min`, delta: summary.avgResponseMinutes === null ? 'No completed tasks' : summary.avgResponseMinutes <= 35 ? 'Within target' : 'Needs attention', up: summary.avgResponseMinutes !== null && summary.avgResponseMinutes <= 35 },
-          { label: 'Route Accessibility', value: `${summary.accessibility}%`, delta: `${summary.accessibility >= 70 ? 'Stable' : 'Watchlist'} access`, up: summary.accessibility >= 70 },
+          summary.accessibility === null
+            ? { label: 'Route Accessibility', value: '—', delta: access.signedOut ? 'Sign in for live status' : access.error ? 'Unavailable' : 'No mapped routes', up: false }
+            : { label: 'Route Accessibility', value: `${summary.accessibility}%`, delta: `${summary.accessibility >= 70 ? 'Stable' : 'Watchlist'} access`, up: summary.accessibility >= 70 },
           { label: 'Logistics On-Time', value: `${summary.onTimeLogistics}%`, delta: `${summary.onTimeLogistics >= 80 ? 'Strong' : 'Monitoring'} flow`, up: summary.onTimeLogistics >= 80 },
           { label: 'Unresolved >24h', value: String(summary.unresolved), delta: summary.unresolved === 0 ? 'All clear' : 'Needs follow-up', up: summary.unresolved === 0 },
         ].map(k => (
@@ -303,7 +303,7 @@ export default function Analytics() {
           </div>
         </ChartCard>
 
-        <ChartCard title="Route Accessibility" subtitle="Accessible vs restricted by route">
+        <ChartCard title="Route Accessibility" subtitle={`Share of each route clear of open incidents (blocked = 0%)${access.data?.scope === 'region' ? ', all districts' : lockedDistrict ? `, ${lockedDistrict} incidents` : selectedDistrict !== 'ALL' ? `, ${selectedDistrict} incidents` : ''}`}>
           <BarChart data={routeAccessibility} colors={['#2D6B4F', '#E07840']} />
           <div className="flex gap-4 mt-3">
             <div className="flex items-center gap-1.5 text-xs" style={{ color: '#5A6670' }}>
@@ -357,7 +357,7 @@ export default function Analytics() {
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10">
               <tr style={{ background: 'rgba(238,228,210,0.98)' }}>
-                {['District', 'State', 'Incidents', 'Avg Response', 'Route Access', 'Logistics Delays', 'Unresolved'].map(h => (
+                {['District', 'State', 'Incidents', 'Avg Response', 'Routes Affected', 'Logistics Delays', 'Unresolved'].map(h => (
                   <th key={h} scope="col" className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider"
                     style={{ color: '#5A6670' }}>{h}</th>
                 ))}
@@ -377,7 +377,9 @@ export default function Analytics() {
                     <td className="px-4 py-2.5 text-xs" style={{ color: '#5A6670' }}>{row.state}</td>
                     <td className="px-4 py-2.5 text-xs font-semibold" style={{ color: row.incidents > 20 ? '#BE2424' : '#17212B' }}>{row.incidents}</td>
                     <td className="px-4 py-2.5 text-xs" style={{ color: parseInt(row.response) > 45 ? '#BE2424' : '#2D6B4F' }}>{row.response}</td>
-                    <td className="px-4 py-2.5 text-xs" style={{ color: parseInt(row.access) < 50 ? '#C25A1A' : '#2D6B4F' }}>{row.access}</td>
+                    <td className="px-4 py-2.5 text-xs" style={{ color: row.routesBlocked ? '#BE2424' : row.routesHit ? '#C25A1A' : '#2D6B4F' }}>
+                      {row.routesHit}{row.routesBlocked ? ` (${row.routesBlocked} blocked)` : ''}
+                    </td>
                     <td className="px-4 py-2.5 text-xs" style={{ color: row.delays > 40 ? '#BE2424' : '#17212B' }}>{row.delays}</td>
                     <td className="px-4 py-2.5 text-xs font-semibold text-center" style={{ color: row.unresolved > 5 ? '#BE2424' : '#17212B' }}>{row.unresolved}</td>
                   </tr>

@@ -3,7 +3,9 @@ import MapViz from '@/components/MapViz';
 import { SeverityBadge, StatusBadge } from '@/components/StatusBadge';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
 import { getAvgResponseMinutes, getTasks, subscribeToTasks } from '@/lib/taskStore';
-import { routes, vehicles, aiInsights } from '@/data/demo';
+import { vehicles } from '@/data/demo';
+import { STATUS_LABEL, pathOf, useCorridorAccessibility } from '@/lib/accessibility';
+import { MlTopAlertsPanel } from '@/components/MlRisk';
 import type { Alert } from '@/data/demo';
 import { profileService, type ProfileMeta } from '@/lib/profileService';
 
@@ -69,7 +71,11 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
 
   const pendingIncidents = useMemo(() => incidents.filter(i => i.status === 'PENDING_VERIFICATION' || i.status === 'UNDER_REVIEW'), [incidents]);
   const activeIncidents = useMemo(() => incidents.filter(i => i.status === 'ACTIVE' || i.status === 'ESCALATED'), [incidents]);
-  const blockedRoutes = useMemo(() => new Set(incidents.filter(i => i.status === 'ACTIVE' || i.status === 'ESCALATED').map(i => i.route)).size, [incidents]);
+  const access = useCorridorAccessibility();
+  const mapRoutes = useMemo(() => (access.data?.routes ?? []).map(r => ({
+    id: r.route_number, name: r.name, status: STATUS_LABEL[r.status], path: pathOf(r), accessibility: r.accessibility_pct,
+  })), [access.data]);
+  const blockedRoutes = mapRoutes.filter(r => r.status === 'Blocked').length;
   const highRiskRoutes = useMemo(() => new Set(incidents.filter(i => i.severity === 'HIGH' || i.severity === 'CRITICAL').map(i => i.route)).size, [incidents]);
   const activeLogistics = useMemo(() => tasks.filter(task => task.status === 'New' || task.status === 'In Progress' || task.status === 'Escalated').length, [tasks]);
   const avgResponseMinutes = useMemo(() => getAvgResponseMinutes(tasks), [tasks]);
@@ -149,7 +155,7 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
               Full Map →
             </button>
           </div>
-          <MapViz incidents={incidents} routes={routes} vehicles={vehicles} height={380} />
+          <MapViz incidents={incidents} routes={mapRoutes} vehicles={vehicles} height={380} />
         </div>
 
         {/* Critical Alerts panel */}
@@ -244,36 +250,9 @@ export default function Dashboard({ setPage }: { setPage: (p: string) => void })
           </div>
           <div className="p-4 space-y-3">
             <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
-              Risk Predictions
+              Highest-risk road segments today
             </div>
-            {aiInsights.riskPredictions.map(p => (
-              <div key={p.route} className="rounded-lg p-3"
-                style={{ background: 'rgba(238,228,210,0.88)', border: '1px solid rgba(180,162,136,0.55)' }}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-semibold text-xs" style={{ color: '#17212B' }}>{p.route}</span>
-                  <span className="text-xs font-bold" style={{ color: '#BE2424' }}>{p.probability}%</span>
-                </div>
-                <div className="text-xs" style={{ color: '#5A6670' }}>
-                  Disruption probability · {p.window}
-                </div>
-                <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(180,162,136,0.55)' }}>
-                  <div className="h-full rounded-full" style={{ width: `${p.probability}%`, background: p.probability > 80 ? '#BE2424' : p.probability > 60 ? '#E07840' : '#C4861A' }} />
-                </div>
-                <div className="flex items-center gap-1 mt-1">
-                  <span style={{ color: '#D7A73A' }}>✦</span>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>AI-generated estimate · Confidence: {p.confidence}%</span>
-                </div>
-              </div>
-            ))}
-            {aiInsights.resourceRecommendations.slice(0, 1).map((rec, i) => (
-              <div key={i} className="rounded-lg p-3 border" style={{ background: '#FEF8E6', borderColor: '#F5DFA8' }}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span style={{ color: '#D7A73A' }}>✦</span>
-                  <span className="text-xs font-semibold" style={{ color: '#C4861A' }}>Resource Recommendation</span>
-                </div>
-                <p className="text-xs" style={{ color: '#5A6670' }}>{rec}</p>
-              </div>
-            ))}
+            <MlTopAlertsPanel compact />
           </div>
         </div>
       </div>

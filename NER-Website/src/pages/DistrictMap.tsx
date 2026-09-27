@@ -1,15 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import MapViz from '@/components/MapViz';
-import { SeverityBadge, AccessibilityBadge } from '@/components/StatusBadge';
-import { routes, vehicles } from '@/data/demo';
-import type { Severity, RouteStatus } from '@/data/demo';
-import { CORRIDORS } from '@/data/geo';
+import { vehicles } from '@/data/demo';
+import type { Severity } from '@/data/demo';
+import { STATUS_LABEL, pathOf, useCorridorAccessibility, type CorridorStatus } from '@/lib/accessibility';
+import { stateLabel, topShare } from '@/lib/ml';
 import { getIncidents, subscribeToIncidents } from '@/lib/incidentStore';
 import type { Role } from '@/roles';
 import { profileService } from '@/lib/profileService';
 
-const layerOptions = ['ROADS', 'INCIDENTS', 'FLOOD RISK', 'LANDSLIDE RISK', 'ML ROAD RISK', 'LOGISTICS', 'INFRASTRUCTURE'];
-const riskLayerTypes: Record<string, string> = { 'FLOOD RISK': 'Flood', 'LANDSLIDE RISK': 'Landslide', INFRASTRUCTURE: 'Infrastructure Damage' };
+const layerOptions = [
+  { id: 'ROADS', label: 'Roads (accessibility status)' },
+  { id: 'INCIDENTS', label: 'Incidents' },
+  { id: 'FLOOD', label: 'Flood hazard (Bhuvan)' },
+  { id: 'LANDSLIDE', label: 'Mapped landslides (Bhuvan)' },
+  { id: 'RISK ZONES', label: 'Incident risk zones' },
+  { id: 'ML ROAD RISK', label: 'ML road risk' },
+  { id: 'LOGISTICS', label: 'Logistics' },
+];
+const statusColor: Record<CorridorStatus, string> = { open: '#2D6B4F', restricted: '#C4861A', blocked: '#BE2424' };
 const riskFilters: { label: string; severity: Severity }[] = [
   { label: 'Low', severity: 'LOW' },
   { label: 'Moderate', severity: 'MODERATE' },
@@ -17,7 +25,6 @@ const riskFilters: { label: string; severity: Severity }[] = [
   { label: 'Critical', severity: 'CRITICAL' },
 ];
 const timeFilters = ['Last 1 hour', 'Last 6 hours', 'Last 24 hours', 'Last 7 days'];
-const routeOptions = Object.entries(CORRIDORS).map(([id, corridor]) => ({ id, name: corridor.name }));
 
 function parseIncidentTime(timeStr?: string): number {
   if (!timeStr) return 0;
@@ -116,29 +123,12 @@ export default function DistrictMap({ role }: { role?: Role }) {
     });
   }, [incidents, timeFilter, severities]);
 
-  const mapRoutes = useMemo(() => {
-    return routes.map(r => {
-      const routeIncidents = mapIncidents.filter(inc => inc.route === r.id);
-      const hasCritical = routeIncidents.some(inc => inc.severity === 'CRITICAL');
-      const hasHigh = routeIncidents.some(inc => inc.severity === 'HIGH');
-      const hasActive = routeIncidents.some(inc => inc.status !== 'RESOLVED' && inc.status !== 'CLOSED');
-
-      let status = r.status;
-      if (routeIncidents.length === 0) {
-        status = 'Open';
-      } else if (hasCritical) {
-        status = 'Blocked';
-      } else if (hasHigh || hasActive) {
-        status = 'Restricted';
-      }
-
-      return {
-        ...r,
-        incidents: routeIncidents.length,
-        status: status as RouteStatus,
-      };
-    });
-  }, [mapIncidents]);
+  // Road status comes from the database (open incidents + route geometry), scoped to the caller's district.
+  const access = useCorridorAccessibility();
+  const corridorRows = useMemo(() => access.data?.routes ?? [], [access.data]);
+  const mapRoutes = useMemo(() => corridorRows.map(r => ({
+    id: r.route_number, name: r.name, status: STATUS_LABEL[r.status], path: pathOf(r), accessibility: r.accessibility_pct,
+  })), [corridorRows]);
 
   const mapVehicles = useMemo(() => {
     if (mapIncidents.length === 0) {
@@ -148,9 +138,7 @@ export default function DistrictMap({ role }: { role?: Role }) {
     return vehicles.filter(v => activeRouteIds.has(v.route));
   }, [mapIncidents]);
 
-  const riskTypes = Object.keys(riskLayerTypes).filter(layer => activeLayers.has(layer)).map(layer => riskLayerTypes[layer]);
-
-  const route = mapRoutes.find(r => r.id === selectedRoute);
+  const route = corridorRows.find(r => r.route_number === selectedRoute);
 
   return (
     <div className="space-y-4 h-full flex flex-col max-w-screen-2xl">
@@ -169,10 +157,10 @@ export default function DistrictMap({ role }: { role?: Role }) {
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#5A6670' }}>Map Layers</h3>
             <div className="space-y-1.5">
               {layerOptions.map(l => (
-                <label key={l} className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: '#17212B' }}>
-                  <input type="checkbox" checked={activeLayers.has(l)} onChange={() => toggleLayer(l)}
+                <label key={l.id} className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: '#17212B' }}>
+                  <input type="checkbox" checked={activeLayers.has(l.id)} onChange={() => toggleLayer(l.id)}
                     className="rounded" />
-                  {l}
+                  {l.label}
                 </label>
               ))}
             </div>
@@ -212,23 +200,22 @@ export default function DistrictMap({ role }: { role?: Role }) {
           <div className="rounded-xl border p-3" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#5A6670' }}>Routes</h3>
             <div className="space-y-1">
-              {routeOptions.map(r => {
-                const status = mapRoutes.find(item => item.id === r.id)?.status;
-                return (
-                  <button key={r.id} onClick={() => setSelectedRoute(selectedRoute === r.id ? null : r.id)} title={r.name}
-                    className="w-full text-left px-2 py-1.5 rounded text-xs transition-colors"
-                    style={{
-                      background: selectedRoute === r.id ? 'rgba(238,228,210,0.88)' : 'transparent',
-                      color: '#17212B',
-                      borderLeft: selectedRoute === r.id ? '2px solid #D7A73A' : '2px solid transparent',
-                    }}>
-                    <span className="font-medium">{r.id}</span>
-                    <span className="ml-2" style={{
-                      color: !status ? 'var(--text-muted)' : status === 'Open' ? '#2D6B4F' : status === 'Restricted' ? '#C4861A' : '#BE2424'
-                    }}>● {status ?? 'No status'}</span>
-                  </button>
-                );
-              })}
+              {access.signedOut && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sign in to load live road status.</p>}
+              {access.error && <p className="text-xs" style={{ color: '#BE2424' }}>Road status unavailable: {access.error}</p>}
+              {access.data && corridorRows.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No routes stored yet.</p>}
+              {corridorRows.map(r => (
+                <button key={r.route_id} onClick={() => setSelectedRoute(selectedRoute === r.route_number ? null : r.route_number)} title={r.name}
+                  className="w-full text-left px-2 py-1.5 rounded text-xs transition-colors"
+                  style={{
+                    background: selectedRoute === r.route_number ? 'rgba(238,228,210,0.88)' : 'transparent',
+                    color: '#17212B',
+                    borderLeft: selectedRoute === r.route_number ? '2px solid #D7A73A' : '2px solid transparent',
+                  }}>
+                  <span className="font-medium">{r.route_number}</span>
+                  <span className="ml-2" style={{ color: statusColor[r.status] }}>● {STATUS_LABEL[r.status]}</span>
+                  {r.accessibility_pct !== null && <span className="ml-1" style={{ color: 'var(--text-muted)' }}>{r.accessibility_pct}%</span>}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -237,13 +224,15 @@ export default function DistrictMap({ role }: { role?: Role }) {
         <div className="flex-1 min-w-0 flex flex-col gap-4">
           <div className="rounded-xl border shadow-sm overflow-hidden" style={{ borderColor: 'rgba(180,162,136,0.55)' }}>
             <MapViz incidents={mapIncidents} routes={mapRoutes} vehicles={mapVehicles} height={520} showLegend
-              rounded="12px" focusRouteId={selectedRoute} riskTypes={riskTypes}
+              rounded="12px" focusRouteId={selectedRoute}
               layers={{
                 routes: activeLayers.has('ROADS'),
                 incidents: activeLayers.has('INCIDENTS'),
                 logistics: activeLayers.has('LOGISTICS'),
-                risk: riskTypes.length > 0,
+                risk: activeLayers.has('RISK ZONES'),
                 ml: activeLayers.has('ML ROAD RISK'),
+                flood: activeLayers.has('FLOOD'),
+                landslide: activeLayers.has('LANDSLIDE'),
               }} />
           </div>
 
@@ -252,37 +241,31 @@ export default function DistrictMap({ role }: { role?: Role }) {
             <div className="rounded-xl border p-4" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold text-base" style={{ color: '#17212B' }}>Route {route.id}</h3>
-                  <p className="text-xs" style={{ color: '#5A6670' }}>{route.name} · {route.distance}</p>
+                  <h3 className="font-semibold text-base" style={{ color: '#17212B' }}>Route {route.route_number}</h3>
+                  <p className="text-xs" style={{ color: '#5A6670' }}>
+                    {route.name}{route.length_m ? ` · ${(route.length_m / 1000).toFixed(0)} km` : ''}
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  <SeverityBadge severity={route.riskScore > 75 ? 'CRITICAL' : route.riskScore > 50 ? 'HIGH' : route.riskScore > 25 ? 'MODERATE' : 'LOW'} />
-                </div>
+                <span className="text-xs font-semibold" style={{ color: statusColor[route.status] }}>● {STATUS_LABEL[route.status]}</span>
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 {[
-                  { label: 'Accessibility', value: <AccessibilityBadge score={route.accessibilityScore} /> },
-                  { label: 'Risk Score', value: `${route.riskScore}/100` },
-                  { label: 'Status', value: route.status },
-                  { label: 'Weather', value: route.weather },
-                  { label: 'Flood Risk', value: route.floodRisk },
-                  { label: 'ETA', value: route.eta },
+                  { label: 'Accessibility', value: route.accessibility_pct === null ? 'No geometry' : `${route.accessibility_pct}%` },
+                  { label: 'Clear length', value: route.open_length_pct === null ? '—' : `${route.open_length_pct}%` },
+                  { label: 'Open incidents', value: String(route.open_incidents) },
+                  { label: 'Blocking', value: String(route.blocking_incidents) },
+                  { label: 'ML risk (max)', value: route.ml?.max_percentile != null ? `${topShare(route.ml.max_percentile)} of roads` : 'No ML coverage' },
                 ].map(item => (
                   <div key={item.label} className="rounded p-2" style={{ background: 'rgba(238,228,210,0.88)' }}>
                     <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>{item.label}</div>
-                    <div className="text-xs font-semibold" style={{ color: '#17212B' }}>
-                      {typeof item.value === 'string' ? item.value : item.value}
-                    </div>
+                    <div className="text-xs font-semibold" style={{ color: '#17212B' }}>{item.value}</div>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 rounded p-2.5 flex items-center gap-2"
-                style={{ background: '#FEF8E6', border: '1px solid #F5DFA8' }}>
-                <span style={{ color: '#D7A73A' }}>✦</span>
-                <span className="text-xs" style={{ color: '#5A6670' }}>
-                  <strong style={{ color: '#17212B' }}>AI Recommendation:</strong> Consider rerouting via NH-40 to reduce disruption risk. Confidence: {route.riskScore > 70 ? '82%' : '65%'}
-                </span>
-              </div>
+              <p className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Status from open incidents within 1 km of the route{access.data?.scope !== 'region' ? ' in your district' : ''}.
+                {route.ml ? ` ML: ${stateLabel(access.data?.ml ?? null)}, ${route.ml.n_segments} segments, advisory only.` : ''}
+              </p>
             </div>
           )}
         </div>

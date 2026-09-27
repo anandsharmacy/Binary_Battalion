@@ -139,6 +139,29 @@ button, a, [role="button"] { transition: background-color .18s ease, color .18s 
 .ui-card { transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .24s cubic-bezier(.4,0,.2,1), border-color .2s ease; }
 .ui-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px -14px rgba(23,50,77,0.38); border-color: rgba(47,111,126,0.5); }
 
+/*
+  Liquid Glass utility — for floating chrome OVER scrollable/map content only
+  (slide-over panels, overlay chips, legends, chat panel). Not for static
+  cards/lists — see plan's scope principle. Alpha floor 0.85 keeps text
+  legible over unpredictable backgrounds (never a "sheer" look).
+  Override --glass-tint (and optionally --glass-alpha/--glass-blur) inline
+  per instance; default tint matches the app's warm cream surface.
+*/
+.ui-glass {
+  --glass-tint: 252,248,242;
+  --glass-alpha: 0.85;
+  --glass-blur: 16px;
+  background: rgba(var(--glass-tint), var(--glass-alpha));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .ui-glass { background: rgb(var(--glass-tint)); }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .ui-glass { background: rgb(var(--glass-tint)); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
 /* KPI cards get a slightly firmer lift */
 .ui-kpi:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -16px rgba(23,50,77,0.42); }
 
@@ -175,7 +198,7 @@ main h1[tabindex="-1"]:focus { outline: none; }
 
 /* Modal (components/Modal.tsx) — one native <dialog>, one scrim */
 dialog.ui-dialog { padding: 0; border: 0; background: transparent; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; }
-dialog.ui-dialog::backdrop { background: rgba(16,30,44,0.42); animation: ui-backdrop-in .25s ease both; }
+dialog.ui-dialog::backdrop { background: rgba(16,30,44,0.42); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: ui-backdrop-in .25s ease both; }
 dialog.ui-dialog.is-right { margin: 0 0 0 auto; height: 100%; max-height: none; max-width: 100vw; }
 .ui-toast { animation: ui-backdrop-in .25s ease both; }
 
@@ -242,15 +265,15 @@ dialog.ui-dialog.is-right { margin: 0 0 0 auto; height: 100%; max-height: none; 
 .ner-map.leaflet-container { font: inherit; font-size: 12px; background: #E9E1D2; }
 .ner-map.is-picking.leaflet-grab { cursor: crosshair; }
 .ner-map .leaflet-bar { border: 1px solid rgba(150,165,180,0.6); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(23,50,77,0.12); }
-.ner-map .leaflet-bar a { width: 32px; height: 32px; line-height: 32px; background: rgba(250,250,251,0.94); color: #17324D; border-bottom-color: rgba(150,165,180,0.45); }
+.ner-map .leaflet-bar a { width: 32px; height: 32px; line-height: 32px; background: rgba(250,250,251,0.94); color: #17324D; border-bottom-color: rgba(150,165,180,0.45); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .ner-map .leaflet-bar a:hover { background: #fff; color: #2F6F7E; }
 @media (pointer: coarse) { .ner-map .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; } }
-.ner-map .leaflet-control-attribution { background: rgba(250,247,240,0.8); color: #5A6670; font-size: 10px; }
+.ner-map .leaflet-control-attribution { background: rgba(250,247,240,0.85); color: #5A6670; font-size: 10px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .ner-map .leaflet-control-attribution a { color: #2F6F7E; }
-.ner-map .leaflet-popup-content-wrapper, .ner-map .leaflet-popup-tip { background: rgba(250,247,240,0.97); color: #17212B; }
+.ner-map .leaflet-popup-content-wrapper, .ner-map .leaflet-popup-tip { background: rgba(250,247,240,0.97); color: #17212B; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .ner-map .leaflet-popup-content-wrapper { border: 1px solid rgba(180,162,136,0.55); border-radius: 10px; box-shadow: 0 10px 24px -12px rgba(23,50,77,0.45); }
 .ner-map .leaflet-popup-content { margin: 10px 12px; font-size: 12px; line-height: 1.45; min-width: 180px; }
-.ner-map .leaflet-tooltip { background: rgba(250,247,240,0.95); border: 1px solid rgba(180,162,136,0.6); border-radius: 4px; color: #17212B; font-size: 11px; padding: 3px 7px; box-shadow: none; }
+.ner-map .leaflet-tooltip { background: rgba(250,247,240,0.95); border: 1px solid rgba(180,162,136,0.6); border-radius: 4px; color: #17212B; font-size: 11px; padding: 3px 7px; box-shadow: none; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .ner-pop-title { font-weight: 600; font-size: 13px; }
 .ner-pop-meta { color: #5A6670; margin: 2px 0 6px; }
 .ner-pop-row { display: flex; gap: 8px; }

@@ -61,8 +61,8 @@ export default function ChatPanel({ mlMeta }: { mlMeta: MlMeta | null }) {
           onKeyDown={(e) => {
             if (e.key === 'Escape') setOpen(false);
           }}
-          className="fixed bottom-20 right-5 z-40 flex w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border shadow-2xl"
-          style={{ height: 'min(34rem, calc(100vh - 8rem))', background: '#FFFDF9', borderColor: 'rgba(180,162,136,0.5)' }}
+          className="ui-glass fixed bottom-20 right-5 z-40 flex w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border shadow-2xl"
+          style={{ height: 'min(34rem, calc(100vh - 8rem))', '--glass-tint': '255,253,249', borderColor: 'rgba(180,162,136,0.5)' } as React.CSSProperties}
         >
           <header className="flex items-start justify-between gap-2 border-b px-4 py-3" style={{ borderColor: 'rgba(180,162,136,0.4)' }}>
             <div className="min-w-0">

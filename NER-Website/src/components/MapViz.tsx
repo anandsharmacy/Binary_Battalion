@@ -4,8 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Severity } from '@/data/demo';
 import { CORRIDORS, NER_CENTER, NER_ZOOM, locate, normalizeRouteId, type LatLng } from '@/data/geo';
 import { fetchMlSegmentsInBbox, fetchMlStatus, stateLabel, TIER_LABEL, topShare, useMlQuery, type MlSegment } from '@/lib/ml';
-import { riderRoute } from '@/data/demoRiders';
-import { drivenWaypoints, type LiveRider } from '@/lib/riderTracking';
+import type { LiveRider } from '@/lib/riderTracking';
 
 /* ────────────────────────────────────────────────────────────────
    Interactive Leaflet map shared by all three role dashboards.
@@ -14,7 +13,7 @@ import { drivenWaypoints, type LiveRider } from '@/lib/riderTracking';
    risk zones, and an optional pickable pin for location capture.
 ──────────────────────────────────────────────────────────────── */
 
-export type MapLayer = 'routes' | 'incidents' | 'logistics' | 'risk' | 'ml';
+export type MapLayer = 'routes' | 'incidents' | 'logistics' | 'risk' | 'ml' | 'flood' | 'landslide';
 
 export interface MapIncident {
   id: string;
@@ -32,6 +31,10 @@ export interface MapRoute {
   id: string;
   status: string;
   name?: string;
+  /** Stored geometry (routes.geom); drawn instead of the built-in corridor sketch when present. */
+  path?: LatLng[];
+  /** Server-computed accessibility % (get_corridor_accessibility). */
+  accessibility?: number | null;
 }
 
 export interface MapVehicle {
@@ -49,10 +52,12 @@ interface MapVizProps {
   incidents?: MapIncident[];
   routes?: MapRoute[];
   vehicles?: MapVehicle[];
-  /** Live riders (demo dataset). Drawn on the logistics layer alongside convoys. */
+  /** Live riders (get_active_riders + Realtime). Drawn on the logistics layer alongside convoys. */
   riders?: LiveRider[];
-  /** Highlights this rider and zooms to its route; every other rider stays visible. */
+  /** Highlights this rider and zooms to its trail; every other rider stays visible. */
   selectedRiderId?: string | null;
+  /** Recent GPS trail of the selected rider, oldest first. */
+  riderTrail?: LatLng[];
   onSelectRider?: (riderId: string | null) => void;
   height?: number;
   showLegend?: boolean;
@@ -79,9 +84,31 @@ const routeColor: Record<string, string> = {
   Open: '#2D6B4F', Restricted: '#E07840', Blocked: '#C25A1A', Closed: '#BE2424',
 };
 const NEUTRAL_ROUTE = '#7E8C7C';
-const DEFAULT_LAYERS: Record<MapLayer, boolean> = { routes: true, incidents: true, logistics: true, risk: false, ml: false };
+const DEFAULT_LAYERS: Record<MapLayer, boolean> = { routes: true, incidents: true, logistics: true, risk: false, ml: false, flood: false, landslide: false };
+
+/** Public ISRO Bhuvan (NRSC) hazard layers, verified with GetMap in EPSG:3857 on 2026-09-27. */
+const BHUVAN = '<a href="https://bhuvan.nrsc.gov.in">ISRO Bhuvan / NRSC</a>';
+export const HAZARD_WMS = {
+  flood: {
+    label: 'Flood hazard (Assam zonation; Arunachal flood extent 2003–20)',
+    color: '#D9559A',
+    sources: [
+      { url: 'https://bhuvan-ras2.nrsc.gov.in/mapcache', layers: 'as_hz' },
+      { url: 'https://bhuvan-ras2.nrsc.gov.in/mapcache', layers: 'agg_ar' },
+    ],
+  },
+  landslide: {
+    label: 'Mapped landslides (Landslide Atlas 2023)',
+    color: '#9C4A1A',
+    sources: [{
+      url: 'https://bhuvan-vec2.nrsc.gov.in/bhuvan/wms',
+      layers: ['LS_ARUNACHAL_2023', 'LS_ASSAM_2023', 'LS_MEGHALAYA_2023', 'LS_MIZORAM_2023', 'LS_NAGALAND_2023',
+        'LS_SIKKIM_2023', 'LS_TRIPURA_2023', 'MN_SLIM_2017'].map(l => `disaster:${l}`).join(','),
+    }],
+  },
+} as const;
 const ML_COLOR = { alert: '#BE2424', human_review: '#C4861A', none: '#2D6B4F' } as const;
-const RIDER_COLOR = { active: '#2F6F7E', inactive: '#8A9098', selected: '#17324D', blocked: '#BE2424', detour: '#C4861A' } as const;
+const RIDER_COLOR = { active: '#2F6F7E', inactive: '#8A9098', selected: '#17324D' } as const;
 
 const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -113,7 +140,7 @@ function spread<T>(items: { item: T; at: LatLng | null }[]) {
 }
 
 export default function MapViz({
-  incidents = [], routes = [], vehicles = [], riders = [], selectedRiderId = null, onSelectRider,
+  incidents = [], routes = [], vehicles = [], riders = [], selectedRiderId = null, riderTrail = [], onSelectRider,
   height = 480, showLegend = true, layers, riskTypes, focusRouteId,
   center = NER_CENTER, zoom = NER_ZOOM, pin = null, pinColor = '#BE2424', onPick,
   rounded = '0 0 12px 12px',
@@ -147,34 +174,35 @@ export default function MapViz({
     [vehicles],
   );
   const routeStatus = useMemo(() => new Map(routes.map(route => [normalizeRouteId(route.id), route])), [routes]);
-
-  // Rider route geometry is static, so the auto-fit does not chase moving markers.
-  const riderIdsKey = riders.map(r => r.id).join('|');
-  const riderRoutePoints = useMemo(() => {
-    const points: LatLng[] = [];
-    riderIdsKey.split('|').filter(Boolean).forEach(id => {
-      const route = riderRoute(id);
-      if (!route) return;
-      route.path.forEach(p => points.push(p.at));
-      route.blocked?.detour.forEach(p => points.push(p.at));
+  // Built-in corridor sketches, overridden or extended by stored route geometry.
+  const corridors = useMemo(() => {
+    const all: Record<string, { name: string; path: LatLng[] }> = { ...CORRIDORS };
+    routeStatus.forEach((route, id) => {
+      if (route.path && route.path.length > 1) all[id] = { name: route.name ?? CORRIDORS[id]?.name ?? id, path: route.path };
     });
-    return points;
-  }, [riderIdsKey]);
+    return all;
+  }, [routeStatus]);
+
+  // Fit to rider positions only when the set of riders changes, so the view does not chase moving markers.
+  const riderIdsKey = riders.map(r => r.id).join('|');
+  const riderRoutePoints = useMemo(() => riders.map(r => r.position),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [riderIdsKey]);
+  const selectedPosition = riders.find(r => r.id === selectedRiderId)?.position;
   const selectedRiderBounds = useMemo(() => {
-    const route = selectedRiderId ? riderRoute(selectedRiderId) : null;
-    if (!route) return null;
-    const points = [...route.path.map(p => p.at), ...(route.blocked?.detour.map(p => p.at) ?? [])];
-    return L.latLngBounds(points);
-  }, [selectedRiderId]);
+    if (!selectedPosition) return null;
+    return L.latLngBounds([selectedPosition, ...riderTrail]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRiderId, riderTrail, Boolean(selectedPosition)]);
 
   const dataBounds = useMemo(() => {
     const points: LatLng[] = [];
     placedIncidents.forEach(({ at }) => at && points.push(at));
     placedVehicles.forEach(({ at }) => at && points.push(at));
-    routeStatus.forEach((_, id) => CORRIDORS[id] && points.push(...CORRIDORS[id].path));
+    routeStatus.forEach((_, id) => corridors[id] && points.push(...corridors[id].path));
     points.push(...riderRoutePoints);
     return points.length ? L.latLngBounds(points) : null;
-  }, [placedIncidents, placedVehicles, routeStatus, riderRoutePoints]);
+  }, [placedIncidents, placedVehicles, routeStatus, corridors, riderRoutePoints]);
   const fitKey = dataBounds?.toBBoxString() ?? '';
   const selectedFitKey = selectedRiderBounds?.toBBoxString() ?? '';
 
@@ -242,7 +270,7 @@ export default function MapViz({
   useEffect(() => {
     fitRef.current = () => {
       if (!map) return;
-      const corridor = focusId ? CORRIDORS[focusId] : null;
+      const corridor = focusId ? corridors[focusId] : null;
       if (corridor) map.fitBounds(corridor.path, { padding: [24, 24] });
       else if (selectedRiderBounds) map.fitBounds(selectedRiderBounds.pad(0.35), { padding: [24, 24], maxZoom: 14 });
       else if (pin) map.setView(pin, 14);
@@ -259,7 +287,7 @@ export default function MapViz({
   useEffect(() => {
     if (!map || !visible.routes) return;
     const group = L.layerGroup();
-    Object.entries(CORRIDORS).forEach(([id, corridor]) => {
+    Object.entries(corridors).forEach(([id, corridor]) => {
       const route = routeStatus.get(id);
       const color = route ? routeColor[route.status] ?? NEUTRAL_ROUTE : NEUTRAL_ROUTE;
       const blocked = route?.status === 'Blocked' || route?.status === 'Closed';
@@ -274,12 +302,22 @@ export default function MapViz({
         dashArray: blocked ? '8 6' : undefined,
         lineCap: 'round',
       })
-        .bindTooltip(`<b>${esc(id)}</b> · ${esc(route?.name && route.name !== id ? route.name : corridor.name)}<br>${esc(route?.status ?? 'No status reported')}`, { sticky: true })
+        .bindTooltip(`<b>${esc(id)}</b> · ${esc(route?.name && route.name !== id ? route.name : corridor.name)}<br>${esc(route?.status ?? 'No status reported')}${route?.accessibility != null ? ` · ${esc(route.accessibility)}% accessible` : ''}`, { sticky: true })
         .addTo(group);
     });
     group.addTo(map);
     return () => { group.remove(); };
-  }, [map, visible.routes, routeStatus, focusId]);
+  }, [map, visible.routes, routeStatus, corridors, focusId]);
+
+  // Hazard overlays (ISRO Bhuvan WMS); drawn under the vector layers.
+  useEffect(() => {
+    if (!map || (!visible.flood && !visible.landslide)) return;
+    const added = (['flood', 'landslide'] as const).filter(k => visible[k]).flatMap(k =>
+      HAZARD_WMS[k].sources.map(src => L.tileLayer.wms(src.url, {
+        layers: src.layers, format: 'image/png', transparent: true, opacity: 0.6, attribution: BHUVAN,
+      }).addTo(map)));
+    return () => { added.forEach(layer => layer.remove()); };
+  }, [map, visible.flood, visible.landslide]);
 
   // Risk zones around unresolved incidents
   useEffect(() => {
@@ -360,40 +398,17 @@ export default function MapViz({
     return () => { group.remove(); };
   }, [map, visible.logistics, placedVehicles]);
 
-  // Rider routes: the selected rider's road, plus every blocked stretch and its detour (always shown)
+  // Selected rider's recent GPS trail
   useEffect(() => {
-    if (!map || !visible.logistics || !riders.length) return;
+    if (!map || !visible.logistics || riderTrail.length < 2) return;
     const group = L.layerGroup();
-    riders.forEach(rider => {
-      const route = riderRoute(rider.id);
-      if (!route || route.path.length < 2) return;
-      const selected = rider.id === selectedRiderId;
-      const { blocked } = route;
-
-      if (selected) {
-        const driven = drivenWaypoints(route).map(p => p.at);
-        L.polyline(driven, { color: RIDER_COLOR.selected, weight: 10, opacity: 0.14, interactive: false }).addTo(group);
-        L.polyline(driven, { color: RIDER_COLOR.selected, weight: 3.5, opacity: 0.9, lineCap: 'round' })
-          .bindTooltip(`<b>${esc(rider.id)}</b> · ${esc(rider.name)}<br>${esc(blocked ? 'Diverted route' : 'Planned route')}`, { sticky: true })
-          .addTo(group);
-      }
-
-      if (blocked) {
-        const blockedPath = route.path.slice(blocked.from, blocked.to + 1).map(p => p.at);
-        const detourPath = [route.path[blocked.from].at, ...blocked.detour.map(p => p.at), route.path[blocked.to].at];
-        L.polyline(blockedPath, { color: RIDER_COLOR.blocked, weight: selected ? 12 : 9, opacity: 0.16, interactive: false }).addTo(group);
-        L.polyline(blockedPath, { color: RIDER_COLOR.blocked, weight: selected ? 4.5 : 3.5, opacity: 0.95, dashArray: '8 6', lineCap: 'round' })
-          .bindTooltip(`<b>Road blocked</b><br>${esc(blocked.reason)}`, { sticky: true })
-          .addTo(group);
-        L.polyline(detourPath, { color: RIDER_COLOR.detour, weight: selected ? 4.5 : 3, opacity: selected ? 0.95 : 0.75, lineCap: 'round' })
-          .bindTooltip(`<b>Diversion</b> · ${esc(rider.id)}<br>${esc(blocked.detour[0]?.label ?? '')}`, { sticky: true })
-          .addTo(group);
-        L.circleMarker(route.path[blocked.from].at, { radius: 5, color: '#FFFFFF', weight: 1.5, fillColor: RIDER_COLOR.blocked, fillOpacity: 1, interactive: false }).addTo(group);
-      }
-    });
+    L.polyline(riderTrail, { color: RIDER_COLOR.selected, weight: 10, opacity: 0.14, interactive: false }).addTo(group);
+    L.polyline(riderTrail, { color: RIDER_COLOR.selected, weight: 3.5, opacity: 0.9, lineCap: 'round' })
+      .bindTooltip('Recent GPS trail', { sticky: true })
+      .addTo(group);
     group.addTo(map);
     return () => { group.remove(); };
-  }, [map, visible.logistics, riderIdsKey, selectedRiderId]);
+  }, [map, visible.logistics, riderTrail]);
 
   // Rider markers (live positions; all riders stay visible, the selected one is emphasised)
   useEffect(() => {
@@ -401,24 +416,23 @@ export default function MapViz({
     const group = L.layerGroup();
     riders.forEach(rider => {
       const selected = rider.id === selectedRiderId;
-      const active = rider.status === 'Active';
+      const active = rider.onDuty && !rider.stale;
       const color = selected ? RIDER_COLOR.selected : active ? RIDER_COLOR.active : RIDER_COLOR.inactive;
       const icon = L.divIcon({
         className: 'ner-marker',
-        html: `<span class="ner-veh${selected ? ' is-selected' : ''}${active ? '' : ' is-idle'}" style="--c:${color}">${esc(rider.id)}</span>`,
+        html: `<span class="ner-veh${selected ? ' is-selected' : ''}${active ? '' : ' is-idle'}" style="--c:${color}">${esc(rider.label)}</span>`,
         iconSize: [0, 0], iconAnchor: [0, 0], popupAnchor: [0, -10],
       });
-      const marker = L.marker(rider.position, { icon, riseOnHover: true, zIndexOffset: selected ? 1000 : 0, alt: `Rider ${rider.id}` })
+      const marker = L.marker(rider.position, { icon, riseOnHover: true, zIndexOffset: selected ? 1000 : 0, alt: `Rider ${rider.name}` })
         .bindTooltip(esc(rider.name), { direction: 'top', offset: [0, -10] })
         .bindPopup(
-          `<div class="ner-pop-title">${esc(rider.id)} · ${esc(rider.name)}</div>`
-          + `<div class="ner-pop-meta">${esc(rider.district)}, ${esc(rider.state)} · <span class="ner-pop-chip" style="--c:${active ? RIDER_COLOR.active : RIDER_COLOR.inactive}">${esc(rider.status)}</span></div>`
+          `<div class="ner-pop-title">${esc(rider.name)}</div>`
+          + `<div class="ner-pop-meta">${esc(rider.district ?? 'No district')} · <span class="ner-pop-chip" style="--c:${active ? RIDER_COLOR.active : RIDER_COLOR.inactive}">${rider.stale ? 'Stale' : rider.onDuty ? 'On duty' : 'Off duty'}</span></div>`
           + popupRows([
-            ['Location', rider.currentLocation],
-            ['Vehicle', rider.vehicleType],
-            ['Phone', rider.phone],
-            ['Rating', rider.rating.toFixed(1)],
-            ['Route', rider.diverted ? 'On diversion (road blocked)' : rider.moving ? 'On planned route' : 'Stationary'],
+            ['Last fix', new Date(rider.recordedAt).toLocaleString()],
+            ['Speed', rider.speedKmph == null ? '—' : `${Math.round(rider.speedKmph)} km/h`],
+            ['Vehicle', [rider.vehicleType, rider.vehicleRegistration].filter(Boolean).join(' · ') || '—'],
+            ['Phone', rider.phone ?? '—'],
           ]),
         );
       marker.on('click', () => onSelectRiderRef.current?.(rider.id));
@@ -513,7 +527,7 @@ export default function MapViz({
     : mlStatus.signedOut ? 'ML road risk needs a live sign-in'
     : mlStatus.data ? `${stateLabel(mlStatus.data)}${mlCapped ? ' · showing the 1,000 riskiest in view' : ''}`
     : null;
-  const missingCorridor = Boolean(focusId && !CORRIDORS[focusId]);
+  const missingCorridor = Boolean(focusId && !corridors[focusId]);
 
   const legend = [
     ...(visible.routes ? [
@@ -530,12 +544,12 @@ export default function MapViz({
     ] : []),
     ...(visible.logistics && vehicles.length ? [{ color: '#17324D', label: 'Convoy / task', kind: 'box' }] : []),
     ...(visible.logistics && riders.length ? [
-      { color: RIDER_COLOR.active, label: 'Active rider', kind: 'box' },
-      { color: RIDER_COLOR.inactive, label: 'Inactive rider', kind: 'box' },
-      { color: RIDER_COLOR.blocked, label: 'Blocked road', kind: 'dash' },
-      { color: RIDER_COLOR.detour, label: 'Diversion', kind: 'line' },
+      { color: RIDER_COLOR.active, label: 'Rider on duty', kind: 'box' },
+      { color: RIDER_COLOR.inactive, label: 'Off duty / stale fix', kind: 'box' },
     ] : []),
     ...(visible.risk ? [{ color: '#E07840', label: 'Risk zone (incidents)', kind: 'zone' }] : []),
+    ...(visible.flood ? [{ color: HAZARD_WMS.flood.color, label: HAZARD_WMS.flood.label, kind: 'zone' }] : []),
+    ...(visible.landslide ? [{ color: HAZARD_WMS.landslide.color, label: HAZARD_WMS.landslide.label, kind: 'zone' }] : []),
     ...(visible.ml ? [
       { color: ML_COLOR.alert, label: 'ML: high disruption risk', kind: 'dot' },
       { color: ML_COLOR.human_review, label: 'ML: needs officer review', kind: 'dot' },
@@ -565,8 +579,8 @@ export default function MapViz({
       )}
 
       {showLegend && legend.length > 0 && (
-        <div className="absolute bottom-6 left-3 z-[1000] rounded-md shadow-sm text-xs"
-          style={{ background: 'rgba(250,247,240,0.92)', border: '1px solid rgba(200,186,164,0.6)', minWidth: 148, backdropFilter: 'blur(4px)' }}>
+        <div className="ui-glass absolute bottom-6 left-3 z-[1000] rounded-md shadow-sm text-xs"
+          style={{ '--glass-tint': '250,247,240', '--glass-alpha': 0.92, '--glass-blur': '4px', border: '1px solid rgba(200,186,164,0.6)', minWidth: 148 } as React.CSSProperties}>
           <button type="button" onClick={() => setLegendOpen(open => !open)} aria-expanded={legendOpen}
             className="w-full flex items-center justify-between gap-3 px-2.5 py-1.5 font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-muted)', fontSize: 11 }}>
@@ -580,7 +594,7 @@ export default function MapViz({
                   {item.kind === 'line' && <span className="w-5 h-0.5 rounded flex-shrink-0" style={{ background: item.color }} />}
                   {item.kind === 'dash' && <span className="w-5 flex-shrink-0" style={{ borderTop: `2px dashed ${item.color}` }} />}
                   {item.kind === 'box' && <span className="w-5 h-3 rounded-sm flex-shrink-0" style={{ border: `1.5px solid ${item.color}`, background: 'rgba(250,247,240,0.95)' }} />}
-                  {item.kind === 'zone' && <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: 'rgba(224,120,64,0.2)', border: `1px solid ${item.color}` }} />}
+                  {item.kind === 'zone' && <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: `${item.color}33`, border: `1px solid ${item.color}` }} />}
                   <span style={{ color: '#5A6670' }}>{item.label}</span>
                 </div>
               ))}
@@ -594,8 +608,8 @@ export default function MapViz({
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-xs px-2 py-0.5 rounded-full shadow-sm"
-      style={{ background: 'rgba(250,247,240,0.94)', border: '1px solid rgba(200,186,164,0.6)', color: '#5A6670' }}>
+    <span className="ui-glass text-xs px-2 py-0.5 rounded-full shadow-sm"
+      style={{ '--glass-tint': '250,247,240', '--glass-alpha': 0.94, '--glass-blur': '10px', border: '1px solid rgba(200,186,164,0.6)', color: '#5A6670' } as React.CSSProperties}>
       {children}
     </span>
   );
