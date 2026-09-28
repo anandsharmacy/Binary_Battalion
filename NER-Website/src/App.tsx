@@ -14,6 +14,7 @@ import DistrictMap from '@/pages/DistrictMap';
 import Incidents from '@/pages/Incidents';
 import Routes from '@/pages/Routes';
 import Logistics from '@/pages/Logistics';
+import Shipments from '@/pages/Shipments';
 import FieldOfficerDashboard from '@/pages/FieldOfficerDashboard';
 import FOMyTasks from '@/pages/fo/MyTasks';
 import FOReportIncident from '@/pages/fo/ReportIncident';
@@ -262,6 +263,7 @@ function DashboardApp({ initialRole, source, onLogout }: { initialRole: Role; so
         case 'incidents': return <Incidents />;
         case 'routes': return <Routes />;
         case 'logistics': return <Logistics />;
+        case 'shipments': return <Shipments role={role} />;
         case 'tasks': return <Tasks />;
         case 'ai': return <AIInsights />;
         case 'alerts': return <Alerts />;
