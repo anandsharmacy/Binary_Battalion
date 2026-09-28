@@ -1,0 +1,561 @@
+{
+  "opened_utc": "2026-09-23T17:20:37.149276+00:00",
+  "git_sha": "nogit",
+  "prereg": {
+    "written_utc": "2026-09-23T18:00:00+00:00",
+    "purpose": "Phase C: the original 'freeze a fresh holdout' plan is void -- coolr_glc, the only in-scope label source, still ends 2017-07-10, so every 2019+ row is 0% in-scope. This opening instead validates final_v6 (D1_rainfall_coverage + X7_imerg_daily), the project's first superiority ACCEPT (+0.0408 dev AP, 5/5 folds, 3/3 seeds), which has never been scored on the locked split, against the current release champion final_v2 on the SAME (current) locked split.",
+    "why_not_stage9_numbers": "The locked split's base rate moved 0.0966 (Stage 9, 7,674 rows) -> 0.150 (current, 8,533 rows) when the P0 rebuild swapped block BLK_006_007 in for BLK_006_008. Gates keyed to base rate (AP/base>2.0, precision@100) are not comparable across that change, so Stage 9's recorded gate values are context only, never the baseline for this comparison.",
+    "models": [
+      {
+        "name": "final_v2",
+        "registry_version": "final_v2",
+        "role": "release champion",
+        "state_as_registered": {
+          "coverage_mask": false,
+          "composite_steps": [
+            "aug/gaussian_all_s0.1",
+            "aug/smote_k5_f0.5"
+          ],
+          "lgbm": {},
+          "add_features": [],
+          "bag": 1
+        },
+        "registered_per_seed_dev_AP": {
+          "42": 0.3918244926033641,
+          "1337": 0.41688223546195396,
+          "2024": 0.39823798857912773
+        }
+      },
+      {
+        "name": "final_v6",
+        "registry_version": "final_v6",
+        "role": "candidate",
+        "state_as_registered": {
+          "coverage_mask": true,
+          "composite_steps": [
+            "aug/gaussian_all_s0.1",
+            "aug/smote_k5_f0.5",
+            "data/weight_uniform"
+          ],
+          "lgbm": {},
+          "add_features": [
+            "imerg_daily"
+          ],
+          "bag": 1
+        },
+        "registered_per_seed_dev_AP": {
+          "42": 0.42387009745103865,
+          "1337": 0.4283398036952972,
+          "2024": 0.4296292561269248
+        },
+        "note": "not v2+IMERG alone -- lineage also carries data/weight_uniform (adopted v3-v5); this is release-champion vs release-candidate, not a single-variable ablation"
+      }
+    ],
+    "both_retrained_on_current_dev_panel": true,
+    "why_retrain_v2": "models/final_v2/model_card.json fingerprint 45c695ea5427d643 was fit 2026-09-12, before the P0 rebuild moved BLK_006_007 from dev into the locked split. Scoring that saved artifact on the current split would score it partly on rows it has already trained on. Retrained fresh here on the current dev panel, same registered state, same procedure as final_v6.",
+    "opening_reason": "Phase C: paired v2/v6 opening under PREREGISTRATION_V3",
+    "cost_fn_over_fp": 20,
+    "success_rule": {
+      "baseline": "final_v2",
+      "candidate": "final_v6",
+      "primary_metric": "full_in_scope.average_precision",
+      "rule": "candidate > baseline",
+      "on_success": "promote final_v6 to release champion",
+      "on_failure": "final_v2 remains the release champion. final_v6 remains dev-only. The shortfall is recorded plainly: a +0.0408 dev AP gain at 5/5 folds and 3/3 seeds did not transfer to the locked split. No re-investigation, no alternate metric substituted after the fact.",
+      "decided_before_opening": true
+    },
+    "reported_populations": {
+      "full_in_scope": "headline; comparable between the two models",
+      "BLK_006_007_only": "the block swapped in by the P0 rebuild; 1,556 rows, 909 positives (58% positive) -- the only strictly never-scored-by-any-model slice. Flagged: precision@100 is close to meaningless at this base rate; read ranking metrics (AP, ROC) here, not precision@k.",
+      "shared_v1v2_blocks_in_scope": "BLK_004_006 + BLK_004_007 + BLK_005_004 + BLK_006_008 + BLK_009_005, in-scope rows only -- disclosed as a third look for v1/v2-era models, not the headline."
+    },
+    "disclosed_before_opening": [
+      "41 of 8,533 locked-test rows (0.48%, all negatives, all dated after IMERG's 2025-09-30 record end) get NaN IMERG features for final_v6; LightGBM handles NaN natively, not patched.",
+      "final_v6 improved dev AP and steep ROC but pushed worst-terrain calibration the wrong way (1.078x -> 1.178x, seed-averaged) against gate G6, which already fails at 2.65x on the Stage-9-era split. A worse G6 here does not retroactively invalidate an AP win under this rule."
+    ],
+    "models_sha256_16": "744397f2ad60fb32"
+  },
+  "results": {
+    "final_v2": {
+      "dev_threshold": 0.05263157894736842,
+      "dev_mean_AP": 0.3909309228860627,
+      "populations": {
+        "full_in_scope": {
+          "n": 8353,
+          "n_pos": 1101,
+          "base_rate": 0.13180893092302168,
+          "average_precision": 0.3137622091265706,
+          "roc_auc": 0.7657083416620201,
+          "brier": 0.1025457989860137,
+          "ece": 0.029363690847236484,
+          "precision@10": 0.7,
+          "recall@10": 0.006357856494096276,
+          "precision@50": 0.6,
+          "recall@50": 0.027247956403269755,
+          "precision@100": 0.51,
+          "recall@100": 0.04632152588555858,
+          "precision@200": 0.565,
+          "recall@200": 0.10263396911898275,
+          "lift@1pct": 3.7030513386099213,
+          "lift@5pct": 3.6300188171692542,
+          "lift@10pct": 2.698516862732301,
+          "threshold": 0.05263157894736842,
+          "tp": 968,
+          "fp": 3222,
+          "fn": 133,
+          "precision": 0.23102625298329355,
+          "recall": 0.8792007266121707,
+          "f1": 0.3659043659043659,
+          "steep_base_rate": 0.20279720279720279,
+          "steep_AP": 0.32620447790043017,
+          "steep_roc_auc": 0.6252338042471683,
+          "n_rows": 8353
+        },
+        "BLK_006_007_only": {
+          "n": 1556,
+          "n_pos": 909,
+          "base_rate": 0.5841902313624678,
+          "average_precision": 0.7169041466010072,
+          "roc_auc": 0.6331915262623634,
+          "brier": 0.37589271699603544,
+          "ece": 0.38486680464121664,
+          "precision@10": 1.0,
+          "recall@10": 0.011001100110011002,
+          "precision@50": 0.86,
+          "recall@50": 0.047304730473047306,
+          "precision@100": 0.89,
+          "recall@100": 0.09790979097909791,
+          "precision@200": 0.89,
+          "recall@200": 0.19581958195819582,
+          "lift@1pct": 1.6047854785478548,
+          "lift@5pct": 1.5142591182195142,
+          "lift@10pct": 1.5142591182195142,
+          "threshold": 0.05263157894736842,
+          "tp": 839,
+          "fp": 522,
+          "fn": 70,
+          "precision": 0.6164584864070536,
+          "recall": 0.922992299229923,
+          "f1": 0.7392070484581498,
+          "steep_base_rate": 0.584516129032258,
+          "steep_AP": 0.7172214753248723,
+          "steep_roc_auc": 0.6332867152043656,
+          "n_rows": 1556
+        },
+        "shared_v1v2_blocks_in_scope": {
+          "n": 6977,
+          "n_pos": 372,
+          "base_rate": 0.05331804500501648,
+          "average_precision": 0.1725286666829691,
+          "roc_auc": 0.7746239408073063,
+          "brier": 0.052664060620338675,
+          "ece": 0.04184923459147518,
+          "precision@10": 0.9,
+          "recall@10": 0.024193548387096774,
+          "precision@50": 0.32,
+          "recall@50": 0.043010752688172046,
+          "precision@100": 0.29,
+          "recall@100": 0.07795698924731183,
+          "precision@200": 0.23,
+          "recall@200": 0.12365591397849462,
+          "lift@1pct": 6.966282642089094,
+          "lift@5pct": 4.138005669039036,
+          "lift@10pct": 2.9288481683458114,
+          "threshold": 0.05263157894736842,
+          "tp": 309,
+          "fp": 2700,
+          "fn": 63,
+          "precision": 0.10269192422731804,
+          "recall": 0.8306451612903226,
+          "f1": 0.18278615794143746,
+          "steep_base_rate": 0.0689758136757241,
+          "steep_AP": 0.1956091701465022,
+          "steep_roc_auc": 0.7575479897481181,
+          "n_rows": 6977
+        }
+      },
+      "n_nan_rainfall_rows": 0,
+      "test_calibration": [
+        {
+          "stratum": "slope [0,2.5)",
+          "n": 3027,
+          "predicted": 0.008679186835041717,
+          "observed": 0.01288404360753221,
+          "pred_over_obs": 0.6736384243505456
+        },
+        {
+          "stratum": "slope [2.5,10)",
+          "n": 607,
+          "predicted": 0.08974445043051774,
+          "observed": 0.17298187808896212,
+          "pred_over_obs": 0.5188083943935644
+        },
+        {
+          "stratum": "slope [10,15)",
+          "n": 609,
+          "predicted": 0.18402166726473518,
+          "observed": 0.2512315270935961,
+          "pred_over_obs": 0.7324784010733576
+        },
+        {
+          "stratum": "slope [15,20)",
+          "n": 1160,
+          "predicted": 0.16326175599106826,
+          "observed": 0.24051724137931035,
+          "pred_over_obs": 0.6787943976689577
+        },
+        {
+          "stratum": "slope [20,25)",
+          "n": 1469,
+          "predicted": 0.17797348536144014,
+          "observed": 0.2205582028590878,
+          "pred_over_obs": 0.8069229938146777
+        },
+        {
+          "stratum": "slope [25,30)",
+          "n": 1053,
+          "predicted": 0.1712525162617024,
+          "observed": 0.13675213675213677,
+          "pred_over_obs": 1.2522840251636986
+        },
+        {
+          "stratum": "slope [30,40)",
+          "n": 427,
+          "predicted": 0.18069002473934104,
+          "observed": 0.13348946135831383,
+          "pred_over_obs": 1.3535901853280459
+        }
+      ],
+      "gates": [
+        {
+          "gate": "beats chance on held-out ground",
+          "threshold": "test AP / base rate > 2.0",
+          "measured": "2.38x",
+          "pass": true,
+          "why": "below this the ranking is not worth the pipeline"
+        },
+        {
+          "gate": "top-of-ranking precision",
+          "threshold": "precision@100 >= 0.50",
+          "measured": "0.510",
+          "pass": true,
+          "why": "operators act on the top of the list, not the whole list"
+        },
+        {
+          "gate": "recall at the operating threshold",
+          "threshold": ">= 0.80",
+          "measured": "0.879",
+          "pass": true,
+          "why": "a missed closure is the costly error for this product"
+        },
+        {
+          "gate": "STEEP-TERRAIN discrimination",
+          "threshold": "steep ROC-AUC >= 0.70",
+          "measured": "0.625",
+          "pass": false,
+          "why": "the roads that actually close are all steep; global AP is inflated by plains-vs-hills, which routing already knows"
+        },
+        {
+          "gate": "steep-terrain lift",
+          "threshold": ">= 2.0x",
+          "measured": "1.61x",
+          "pass": false,
+          "why": "operational value, not global value"
+        },
+        {
+          "gate": "probability calibration transfers",
+          "threshold": "worst terrain stratum within 1.5x on unseen region",
+          "measured": "1.93x",
+          "pass": false,
+          "why": "calibrated P becomes the routing penalty W = dist*(1 + lambda*P)"
+        },
+        {
+          "gate": "survives rainfall forecast error",
+          "threshold": ">= 80% of clean AP at sigma = 0.25",
+          "measured": "96.2%",
+          "pass": true,
+          "why": "deployment feeds a forecast, not an observation"
+        },
+        {
+          "gate": "rainfall is actually driving the prediction",
+          "threshold": "positives lose >= 30% of score under zero rainfall",
+          "measured": "42.6%",
+          "pass": true,
+          "why": "otherwise it is a terrain map with a weather-shaped label"
+        },
+        {
+          "gate": "daily corridor scoring fits the batch window",
+          "threshold": "< 300 s for 309,042 segments",
+          "measured": "1.15 s",
+          "pass": true,
+          "why": "once-daily batch job"
+        },
+        {
+          "gate": "artifact size is deployable",
+          "threshold": "< 50 MB",
+          "measured": "0.67 MB",
+          "pass": true,
+          "why": "ships inside a container image"
+        },
+        {
+          "gate": "reproducible from config + seed",
+          "threshold": "retrain reproduces the recorded test AP",
+          "measured": "bit-identical",
+          "pass": true,
+          "why": "an unreproducible model cannot be audited or rolled back"
+        },
+        {
+          "gate": "rainfall monotonicity enforced end-to-end",
+          "threshold": "0 rank violations with derived flags recomputed",
+          "measured": "0 violations",
+          "pass": true,
+          "why": "more rain must never lower the score"
+        }
+      ],
+      "n_gates_pass": 9,
+      "n_gates_total": 12
+    },
+    "final_v6": {
+      "dev_threshold": 0.030211480362537766,
+      "dev_mean_AP": 0.427279719091087,
+      "populations": {
+        "full_in_scope": {
+          "n": 8353,
+          "n_pos": 1101,
+          "base_rate": 0.13180893092302168,
+          "average_precision": 0.30479561493182095,
+          "roc_auc": 0.7658792989174461,
+          "brier": 0.1039479418970756,
+          "ece": 0.035838715710986964,
+          "precision@10": 0.7,
+          "recall@10": 0.006357856494096276,
+          "precision@50": 0.54,
+          "recall@50": 0.02452316076294278,
+          "precision@100": 0.5,
+          "recall@100": 0.045413260672116255,
+          "precision@200": 0.48,
+          "recall@200": 0.08719346049046321,
+          "lift@1pct": 3.7933696639418706,
+          "lift@5pct": 3.285167029538175,
+          "lift@10pct": 2.9074929160752063,
+          "threshold": 0.030211480362537766,
+          "tp": 1067,
+          "fp": 4309,
+          "fn": 34,
+          "precision": 0.19847470238095238,
+          "recall": 0.9691189827429609,
+          "f1": 0.32947352169214145,
+          "steep_base_rate": 0.20279720279720279,
+          "steep_AP": 0.30614063847975526,
+          "steep_roc_auc": 0.608480865410415,
+          "n_rows": 8353
+        },
+        "BLK_006_007_only": {
+          "n": 1556,
+          "n_pos": 909,
+          "base_rate": 0.5841902313624678,
+          "average_precision": 0.6759923335601195,
+          "roc_auc": 0.5930638658919989,
+          "brier": 0.3908639856226467,
+          "ece": 0.3928050236312097,
+          "precision@10": 1.0,
+          "recall@10": 0.011001100110011002,
+          "precision@50": 0.82,
+          "recall@50": 0.045104510451045104,
+          "precision@100": 0.82,
+          "recall@100": 0.09020902090209021,
+          "precision@200": 0.755,
+          "recall@200": 0.16611661166116612,
+          "lift@1pct": 1.6047854785478548,
+          "lift@5pct": 1.3825844122873827,
+          "lift@10pct": 1.3057741671603058,
+          "threshold": 0.030211480362537766,
+          "tp": 888,
+          "fp": 600,
+          "fn": 21,
+          "precision": 0.5967741935483871,
+          "recall": 0.976897689768977,
+          "f1": 0.7409261576971214,
+          "steep_base_rate": 0.584516129032258,
+          "steep_AP": 0.6764563169789801,
+          "steep_roc_auc": 0.5936810154525386,
+          "n_rows": 1556
+        },
+        "shared_v1v2_blocks_in_scope": {
+          "n": 6977,
+          "n_pos": 372,
+          "base_rate": 0.05331804500501648,
+          "average_precision": 0.24291646803538056,
+          "roc_auc": 0.8187032469699559,
+          "brier": 0.05025248825245066,
+          "ece": 0.04694519948311825,
+          "precision@10": 0.7,
+          "recall@10": 0.01881720430107527,
+          "precision@50": 0.52,
+          "recall@50": 0.06989247311827956,
+          "precision@100": 0.39,
+          "recall@100": 0.10483870967741936,
+          "precision@200": 0.355,
+          "recall@200": 0.19086021505376344,
+          "lift@1pct": 8.038018433179722,
+          "lift@5pct": 5.48151400314262,
+          "lift@10pct": 4.917240502819114,
+          "threshold": 0.030211480362537766,
+          "tp": 359,
+          "fp": 3709,
+          "fn": 13,
+          "precision": 0.08824975417895772,
+          "recall": 0.9650537634408602,
+          "f1": 0.16171171171171173,
+          "steep_base_rate": 0.0689758136757241,
+          "steep_AP": 0.28347780835116754,
+          "steep_roc_auc": 0.8123422440292228,
+          "n_rows": 6977
+        }
+      },
+      "n_nan_rainfall_rows": 41,
+      "test_calibration": [
+        {
+          "stratum": "slope [0,2.5)",
+          "n": 3027,
+          "predicted": 0.013068486749103039,
+          "observed": 0.01288404360753221,
+          "pred_over_obs": 1.0143156253726897
+        },
+        {
+          "stratum": "slope [2.5,10)",
+          "n": 607,
+          "predicted": 0.09712970217065996,
+          "observed": 0.17298187808896212,
+          "pred_over_obs": 0.5615021830246723
+        },
+        {
+          "stratum": "slope [10,15)",
+          "n": 609,
+          "predicted": 0.17837636919865152,
+          "observed": 0.2512315270935961,
+          "pred_over_obs": 0.7100079009279657
+        },
+        {
+          "stratum": "slope [15,20)",
+          "n": 1160,
+          "predicted": 0.16658437518196126,
+          "observed": 0.24051724137931035,
+          "pred_over_obs": 0.6926088717242833
+        },
+        {
+          "stratum": "slope [20,25)",
+          "n": 1469,
+          "predicted": 0.18145216779839038,
+          "observed": 0.2205582028590878,
+          "pred_over_obs": 0.822695168197023
+        },
+        {
+          "stratum": "slope [25,30)",
+          "n": 1053,
+          "predicted": 0.17904292636518568,
+          "observed": 0.13675213675213677,
+          "pred_over_obs": 1.3092513990454202
+        },
+        {
+          "stratum": "slope [30,40)",
+          "n": 427,
+          "predicted": 0.19738971962783258,
+          "observed": 0.13348946135831383,
+          "pred_over_obs": 1.478691408440079
+        }
+      ],
+      "gates": [
+        {
+          "gate": "beats chance on held-out ground",
+          "threshold": "test AP / base rate > 2.0",
+          "measured": "2.31x",
+          "pass": true,
+          "why": "below this the ranking is not worth the pipeline"
+        },
+        {
+          "gate": "top-of-ranking precision",
+          "threshold": "precision@100 >= 0.50",
+          "measured": "0.500",
+          "pass": true,
+          "why": "operators act on the top of the list, not the whole list"
+        },
+        {
+          "gate": "recall at the operating threshold",
+          "threshold": ">= 0.80",
+          "measured": "0.969",
+          "pass": true,
+          "why": "a missed closure is the costly error for this product"
+        },
+        {
+          "gate": "STEEP-TERRAIN discrimination",
+          "threshold": "steep ROC-AUC >= 0.70",
+          "measured": "0.608",
+          "pass": false,
+          "why": "the roads that actually close are all steep; global AP is inflated by plains-vs-hills, which routing already knows"
+        },
+        {
+          "gate": "steep-terrain lift",
+          "threshold": ">= 2.0x",
+          "measured": "1.51x",
+          "pass": false,
+          "why": "operational value, not global value"
+        },
+        {
+          "gate": "probability calibration transfers",
+          "threshold": "worst terrain stratum within 1.5x on unseen region",
+          "measured": "1.78x",
+          "pass": false,
+          "why": "calibrated P becomes the routing penalty W = dist*(1 + lambda*P)"
+        },
+        {
+          "gate": "survives rainfall forecast error",
+          "threshold": ">= 80% of clean AP at sigma = 0.25",
+          "measured": "98.3%",
+          "pass": true,
+          "why": "deployment feeds a forecast, not an observation"
+        },
+        {
+          "gate": "rainfall is actually driving the prediction",
+          "threshold": "positives lose >= 30% of score under zero rainfall",
+          "measured": "25.1%",
+          "pass": false,
+          "why": "otherwise it is a terrain map with a weather-shaped label"
+        },
+        {
+          "gate": "daily corridor scoring fits the batch window",
+          "threshold": "< 300 s for 309,042 segments",
+          "measured": "0.36 s",
+          "pass": true,
+          "why": "once-daily batch job"
+        },
+        {
+          "gate": "artifact size is deployable",
+          "threshold": "< 50 MB",
+          "measured": "0.24 MB",
+          "pass": true,
+          "why": "ships inside a container image"
+        },
+        {
+          "gate": "reproducible from config + seed",
+          "threshold": "retrain reproduces the recorded test AP",
+          "measured": "bit-identical",
+          "pass": true,
+          "why": "an unreproducible model cannot be audited or rolled back"
+        },
+        {
+          "gate": "rainfall monotonicity enforced end-to-end",
+          "threshold": "0 rank violations with derived flags recomputed",
+          "measured": "0 violations",
+          "pass": true,
+          "why": "more rain must never lower the score"
+        }
+      ],
+      "n_gates_pass": 8,
+      "n_gates_total": 12
+    }
+  },
+  "delta_in_scope_AP_candidate_minus_baseline": -0.008966594194749655,
+  "decision": "final_v6 did not beat final_v2 on the locked split (-0.0090 in-scope AP) -- final_v2 STAYS the release champion, per PREREGISTRATION_V3's pre-stated rule",
+  "promoted": false
+}

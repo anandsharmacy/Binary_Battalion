@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+data/interim/
+data/processed/*.parquet
+reports/*.png
+reports/**/*.png
+.DS_Store
+# Stage 3/4 training outputs
+# Large/duplicate training runs stay out; the small final_* models + registry are tracked.
+models/training_v1/
+models/baseline_v1/
+checkpoints/
+mlruns/
+
+studies/
+# Stage 11 deployment: generated artifacts + environments (rebuild with `make bundle`)
+.venv-deploy/
+.venv-publish/
+deploy/featurestore/
+deploy/scores/
+reports/stage11/*.npy

@@ -1,0 +1,26 @@
+{
+ "version": "final_v3",
+ "benchmark_only": false,
+ "source_model": "/Users/anand/Desktop/SIH/data/sih-ml/models/final_v3",
+ "source_config_sha256_16": "37ff290bc79618c0",
+ "lineage": [
+  {
+   "id": "D1_rainfall_coverage",
+   "kind": "correctness",
+   "reason": "correctness fix adopted on correctness grounds; accuracy effect -0.0014 (not demonstrated), no guardrail breached",
+   "mean_delta": -0.0013906537651405186
+  }
+ ],
+ "status": "DEV champion \u2014 not evaluated on the locked split",
+ "n_trees": 1199,
+ "lightgbm_version": "4.7.0",
+ "created_utc": "2026-09-12T03:44:26.236699+00:00",
+ "files": {
+  "model.txt": "0b9887f6937b2d3510d7c835ef32497bf3302663d7060aacfb9a2e245ef71194",
+  "calibration.json": "21b3e67ed2c6771722232a2e4d3bb14143d2175a0ec849a832f5578e4decbfa1",
+  "schema.json": "19c14ab3cc230052dd3ecfb0e6ef01c507096982e8a4af39c501d040bbd13b62",
+  "policy.json": "4f1288ad8974cd20076011098c416ba9e156c5f3dc85d47ae0af5cc7536711fc",
+  "reference.json": "810db9a12f9cb1d7c83a269e2e060888b2f2a89fb94020b849d88ef3d5ea86e5"
+ },
+ "registry_champion": "final_v3"
+}

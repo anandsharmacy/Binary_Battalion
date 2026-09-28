@@ -1,0 +1,5 @@
+{
+  "method": "isotonic",
+  "train_prior": 0.1835410443918014,
+  "target_prior": null
+}

@@ -23,3 +23,10 @@ logs/
 # beside it.
 /.plugins/
 /.opencode-skills/
+
+# Secrets and signing material. This repository is public: never commit these.
+.env
+key.properties
+*.jks
+*.keystore
+env.json

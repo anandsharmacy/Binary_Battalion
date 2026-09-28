@@ -1,0 +1,8 @@
+{
+ "alert_probability_threshold": 0.07647058823529412,
+ "threshold_origin": "dev out-of-fold, cost-optimal at FN:FP = 10 (Stage 7 measured 10 dominating the unvalidated 20); ratio still to be settled with MDoNER",
+ "steep_slope_deg": 10.0,
+ "steep_rule": "steep segments above threshold -> human_review, never autonomous alerting (REMEDIATION.md \u00a7D)",
+ "primary_output": "risk_percentile",
+ "probability_caveat": "p_calibrated is calibrated on a case-control training panel (~10 sampled negatives per positive), so its absolute level overstates the true daily probability on the full corridor; Stage 9 also measured calibration NOT transferring to a new region (worst terrain stratum 2.65x). Rank by risk_percentile. Do not feed p_calibrated into the routing penalty on unseen terrain without recalibrating on local history."
+}
