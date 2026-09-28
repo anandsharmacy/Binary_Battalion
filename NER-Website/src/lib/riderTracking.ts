@@ -4,7 +4,7 @@
    - initial load: get_active_riders RPC (joined identity/vehicle/shipment)
    - live deltas: one Realtime channel on rider_locations + rider_profiles
    - polling fallback every 30 s while the channel is not subscribed
-   RLS (can_see_rider) limits district/field officers to their district.
+   RLS (can_see_rider) limits a district officer to riders currently inside their district.
    Detours are not computed here; see routing.ts.
 ──────────────────────────────────────────────────────────────── */
 
@@ -14,6 +14,26 @@ import { supabase } from '@/lib/supabase';
 import { isStale, STALE_MINUTES } from '@/lib/riderStale';
 
 export { isStale, STALE_MINUTES };
+
+const R_EARTH_M = 6_371_000;
+const rad = (d: number) => (d * Math.PI) / 180;
+
+export function haversineM(a: LatLng, b: LatLng): number {
+  const h = Math.sin(rad(b[0] - a[0]) / 2) ** 2
+    + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(rad(b[1] - a[1]) / 2) ** 2;
+  return 2 * R_EARTH_M * Math.asin(Math.sqrt(h));
+}
+
+/** Initial compass bearing a → b in degrees, 0 = north, clockwise. */
+export function bearingDeg(a: LatLng, b: LatLng): number {
+  const dLng = rad(b[1] - a[1]);
+  const y = Math.sin(dLng) * Math.cos(rad(b[0]));
+  const x = Math.cos(rad(a[0])) * Math.sin(rad(b[0])) - Math.sin(rad(a[0])) * Math.cos(rad(b[0])) * Math.cos(dLng);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+const MAX_KMPH = 200;      // faster than this between two fixes is GPS noise, not a vehicle
+const JUMP_CONFIRM_M = 500; // ...unless the next fix lands next to it (the rider really is there)
 
 export interface LiveRider {
   id: string;
@@ -64,7 +84,8 @@ interface ActiveRiderRow {
 }
 
 type LocationChange = Partial<Pick<ActiveRiderRow,
-  'user_id' | 'latitude' | 'longitude' | 'speed_kmph' | 'heading_deg' | 'battery_percent' | 'is_moving' | 'recorded_at' | 'shipment_id'>>;
+  'user_id' | 'latitude' | 'longitude' | 'speed_kmph' | 'heading_deg' | 'battery_percent' | 'is_moving' | 'recorded_at' | 'shipment_id'>>
+  & { current_district_id?: string | null; previous_district_id?: string | null };
 type ProfileChange = Partial<Pick<ActiveRiderRow, 'user_id' | 'is_on_duty' | 'vehicle_registration' | 'vehicle_type' | 'phone'>>;
 
 function fromRow(r: ActiveRiderRow, now: number): LiveRider {
@@ -112,6 +133,7 @@ export interface LiveRidersFeed {
 
 export function useLiveRiders(): LiveRidersFeed {
   const byId = useRef(new Map<string, LiveRider>());
+  const rejected = useRef(new Map<string, LatLng>()); // last fix dropped as a jump, per rider
   const [riders, setRiders] = useState<LiveRider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -156,10 +178,22 @@ export function useLiveRiders(): LiveRidersFeed {
         return;
       }
       if (Date.parse(row.recorded_at) < Date.parse(cur.recordedAt)) return;
+      // Rider crossed a district border: the RPC adds or drops them for this officer's scope.
+      if ((row.current_district_id ?? null) !== (row.previous_district_id ?? null)) refetchSoon();
       if ((row.shipment_id ?? null) !== cur.shipmentId) refetchSoon();
+      const next: LatLng = [row.latitude, row.longitude];
+      const hours = Math.max((Date.parse(row.recorded_at) - Date.parse(cur.recordedAt)) / 3_600_000, 1 / 3600);
+      if (haversineM(cur.position, next) / 1000 / hours > MAX_KMPH) {
+        const prev = rejected.current.get(cur.id);
+        if (!prev || haversineM(prev, next) > JUMP_CONFIRM_M) {
+          rejected.current.set(cur.id, next);
+          return;
+        }
+      }
+      rejected.current.delete(cur.id);
       byId.current.set(cur.id, {
         ...cur,
-        position: [row.latitude, row.longitude],
+        position: next,
         speedKmph: row.speed_kmph ?? null,
         headingDeg: row.heading_deg ?? null,
         batteryPercent: row.battery_percent ?? null,

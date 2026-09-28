@@ -295,6 +295,11 @@ dialog.ui-dialog.is-right { margin: 0 0 0 auto; height: 100%; max-height: none; 
   padding: 1px 6px; border-radius: 4px; background: rgba(250,247,240,0.95); border: 1.5px solid var(--c);
   color: var(--c); font-size: 11px; font-weight: 700; box-shadow: 0 1px 3px rgba(23,33,43,0.2);
 }
+.ner-hdg { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transition: transform 0.8s linear; pointer-events: none; }
+.ner-hdg::after {
+  content: ''; position: absolute; left: -5px; top: -25px;
+  border: 5px solid transparent; border-top: 0; border-bottom: 9px solid var(--c);
+}
 .ner-veh.is-idle { opacity: 0.8; border-style: dashed; }
 .ner-veh.is-selected { border-width: 2px; background: var(--c); color: #fff; box-shadow: 0 0 0 3px rgba(23,50,77,0.18), 0 1px 4px rgba(23,33,43,0.35); }
 .ner-pin {
