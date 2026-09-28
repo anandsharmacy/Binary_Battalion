@@ -1,0 +1,248 @@
+{
+  "champion": "final_v6",
+  "versions": [
+    {
+      "version": "final_v1",
+      "config_sha256_16": "5c8ab2326f9c5b5c",
+      "status": "known-leaked, superseded",
+      "record": "reports/stage7/PREREGISTRATION.json"
+    },
+    {
+      "version": "final_v2",
+      "config_sha256_16": "5aed65f3f8729060",
+      "status": "superseded by final_v3",
+      "record": "reports/stage9/PREREGISTRATION_V2.json",
+      "artifact": "models/final_v2/",
+      "state": {
+        "coverage_mask": false,
+        "composite_steps": [
+          "aug/gaussian_all_s0.1",
+          "aug/smote_k5_f0.5"
+        ],
+        "lgbm": {},
+        "add_features": [],
+        "bag": 1
+      },
+      "per_seed_AP": {
+        "42": 0.3918244926033641,
+        "1337": 0.41688223546195396,
+        "2024": 0.39823798857912773
+      },
+      "dev_threshold_fn_fp_20": 0.027149321266968326,
+      "dev_mean_AP": 0.40231490554814864,
+      "locked_split": "opened (Stage 9, pre-rebuild split); RE-OPENED Phase C 2026-09-23 on the current (post-P0-rebuild) split, retrained fresh -- see REMEDIATION.md and reports/stage10/PHASE_C_FINAL_TEST.md",
+      "phase_c_locked_split_result": {
+        "retrained_on_current_dev_panel": true,
+        "full_in_scope_AP": 0.3137622091265706,
+        "gates_pass": "9/12"
+      }
+    },
+    {
+      "version": "final_v3",
+      "status": "superseded by final_v4",
+      "parent": "final_v2",
+      "state": {
+        "coverage_mask": true,
+        "composite_steps": [
+          "aug/gaussian_all_s0.1",
+          "aug/smote_k5_f0.5"
+        ],
+        "lgbm": {},
+        "add_features": [],
+        "bag": 1
+      },
+      "lineage": [
+        {
+          "id": "D1_rainfall_coverage",
+          "kind": "correctness",
+          "reason": "correctness fix adopted on correctness grounds; accuracy effect -0.0014 (not demonstrated), no guardrail breached",
+          "mean_delta": -0.0013906537651405186
+        }
+      ],
+      "artifact": "models/final_v3/",
+      "campaign_id": "c20260912T022646Z",
+      "per_seed_AP": {
+        "42": 0.38755403076218153,
+        "1337": 0.41547746024574683,
+        "2024": 0.40026982752832685
+      },
+      "dev_threshold_fn_fp_20": 0.05737704918032787,
+      "dev_mean_AP_on_its_rows": 0.40110043951208507,
+      "locked_split": "NOT opened \u2014 release requires pre-registration"
+    },
+    {
+      "version": "final_v4",
+      "status": "superseded by final_v5",
+      "parent": "final_v3",
+      "state": {
+        "coverage_mask": true,
+        "composite_steps": [
+          "aug/gaussian_all_s0.1",
+          "aug/smote_k5_f0.5",
+          "data/weight_uniform"
+        ],
+        "lgbm": {},
+        "add_features": [],
+        "bag": 1
+      },
+      "lineage": [
+        {
+          "id": "D1_rainfall_coverage",
+          "kind": "correctness",
+          "reason": "correctness fix adopted on correctness grounds; accuracy effect +0.0000 (not demonstrated), no guardrail breached",
+          "mean_delta": 0.0
+        },
+        {
+          "id": "S3_uniform_weights",
+          "kind": "simplification",
+          "reason": "non-inferior (-0.0045 AP, margin 0.0100, 3/5 folds worse) \u2014 fewer moving parts for the same accuracy",
+          "mean_delta": -0.004472603615264805
+        }
+      ],
+      "artifact": "models/final_v4/",
+      "campaign_id": "c20260922T111216Z",
+      "fingerprint": {
+        "code_sha16": "920c8568d915a221",
+        "data_sha16": "c9b834389704d903",
+        "env": {
+          "python": "3.14.6",
+          "lightgbm": "4.7.0",
+          "numpy": "2.5.3",
+          "pandas": "3.0.5",
+          "sklearn": "1.9.1",
+          "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+          "machine": "arm64"
+        }
+      },
+      "per_seed_AP": {
+        "42": 0.3842498118158239,
+        "1337": 0.3888000806144237,
+        "2024": 0.386325065382146
+      },
+      "dev_threshold_fn_fp_20": 0.06512605042016807,
+      "dev_mean_AP_on_its_rows": 0.3864583192707978,
+      "locked_split": "NOT opened \u2014 release requires pre-registration"
+    },
+    {
+      "version": "final_v5",
+      "status": "superseded by final_v6",
+      "parent": "final_v4",
+      "state": {
+        "coverage_mask": true,
+        "composite_steps": [
+          "aug/gaussian_all_s0.1",
+          "aug/smote_k5_f0.5",
+          "data/weight_uniform"
+        ],
+        "lgbm": {},
+        "add_features": [],
+        "bag": 1
+      },
+      "lineage": [
+        {
+          "id": "D1_rainfall_coverage",
+          "kind": "correctness",
+          "reason": "correctness fix adopted on correctness grounds; accuracy effect +0.0000 (not demonstrated), no guardrail breached",
+          "mean_delta": 0.0
+        }
+      ],
+      "artifact": "models/final_v5/",
+      "campaign_id": "c20260922T135017Z",
+      "fingerprint": {
+        "code_sha16": "99e37c57ec2527b8",
+        "data_sha16": "b12eef202582ce17",
+        "env": {
+          "python": "3.14.6",
+          "lightgbm": "4.7.0",
+          "numpy": "2.5.3",
+          "pandas": "3.0.5",
+          "sklearn": "1.9.1",
+          "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+          "machine": "arm64"
+        }
+      },
+      "per_seed_AP": {
+        "42": 0.3842498118158239,
+        "1337": 0.3888000806144237,
+        "2024": 0.386325065382146
+      },
+      "dev_threshold_fn_fp_20": 0.06512605042016807,
+      "dev_mean_AP_on_its_rows": 0.3864583192707978,
+      "locked_split": "NOT opened \u2014 release requires pre-registration"
+    },
+    {
+      "version": "final_v6",
+      "status": "dev champion; DID NOT beat final_v2 on the locked split (Phase C) -- final_v2 remains release champion",
+      "parent": "final_v5",
+      "state": {
+        "coverage_mask": true,
+        "composite_steps": [
+          "aug/gaussian_all_s0.1",
+          "aug/smote_k5_f0.5",
+          "data/weight_uniform"
+        ],
+        "lgbm": {},
+        "add_features": [
+          "imerg_daily"
+        ],
+        "bag": 1
+      },
+      "lineage": [
+        {
+          "id": "D1_rainfall_coverage",
+          "kind": "correctness",
+          "reason": "correctness fix adopted on correctness grounds; accuracy effect +0.0000 (not demonstrated), no guardrail breached",
+          "mean_delta": 0.0
+        },
+        {
+          "id": "X7_imerg_daily",
+          "kind": "superiority",
+          "reason": "improvement +0.0408 AP, 5/5 folds, 3/3 seeds, above A/A floor 0.0084",
+          "mean_delta": 0.040821399820289005
+        }
+      ],
+      "artifact": "models/final_v6/",
+      "campaign_id": "c20260923T115449Z",
+      "fingerprint": {
+        "code_sha16": "478eb579296f28b9",
+        "data_sha16": "d65b9980a7e6712e",
+        "env": {
+          "python": "3.14.6",
+          "lightgbm": "4.7.0",
+          "numpy": "2.5.3",
+          "pandas": "3.0.5",
+          "sklearn": "1.9.1",
+          "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+          "machine": "arm64"
+        }
+      },
+      "per_seed_AP": {
+        "42": 0.42387009745103865,
+        "1337": 0.4283398036952972,
+        "2024": 0.4296292561269248
+      },
+      "dev_threshold_fn_fp_20": 0.030211480362537766,
+      "dev_mean_AP_on_its_rows": 0.427279719091087,
+      "locked_split": "opened Phase C 2026-09-23 under PREREGISTRATION_V3 -- see reports/stage10/PHASE_C_FINAL_TEST.md",
+      "phase_c_locked_split_result": {
+        "full_in_scope_AP": 0.30479561493182095,
+        "delta_vs_final_v2": -0.008966594194749655,
+        "gates_pass": "8/12",
+        "promoted": false,
+        "decision": "final_v6 did not beat final_v2 on the locked split (-0.0090 in-scope AP) -- final_v2 STAYS the release champion, per PREREGISTRATION_V3's pre-stated rule"
+      }
+    }
+  ],
+  "champion_reason": "D1_rainfall_coverage: correctness fix adopted on correctness grounds; accuracy effect +0.0000 (not demonstrated), no guardrail breached; X7_imerg_daily: improvement +0.0408 AP, 5/5 folds, 3/3 seeds, above A/A floor 0.0084",
+  "last_campaign": {
+    "id": "c20260923T115449Z",
+    "experiments": 11,
+    "accepted": [
+      "D1_rainfall_coverage",
+      "X7_imerg_daily"
+    ],
+    "ledger": "reports/stage10/EXPERIMENT_LEDGER.jsonl"
+  },
+  "release_champion": "final_v2",
+  "release_champion_reason": "Phase C (2026-09-23): final_v6's dev-side gain (+0.0408 AP, 5/5 folds, 3/3 seeds) did not transfer to the locked split (-0.0090 in-scope AP; 8/12 gates vs final_v2's 9/12). Per PREREGISTRATION_V3's pre-stated rule, final_v2 remains the release champion. 'champion' above still tracks the best DEV candidate (final_v6), which this result does not change -- only its release readiness."
+}

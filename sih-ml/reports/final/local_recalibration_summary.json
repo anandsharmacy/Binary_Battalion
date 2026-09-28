@@ -1,0 +1,11 @@
+{
+  "n_blocks_with_ge_100_rows_and_ge_10_positives": 24,
+  "n_blocks_too_sparse_for_a_target_season": 15,
+  "n_blocks_with_target_but_too_little_history_to_fit": 1,
+  "n_blocks_a_local_calibrator_was_actually_fitted_for": 8,
+  "n_blocks_improved": 2,
+  "frac_improved_of_fitted": 0.25,
+  "median_abs_dev_from_1_global_all_scored_blocks": 0.7045347282172398,
+  "median_abs_dev_from_1_local_where_fitted": 1.675247160110193,
+  "caveat": "BACKTEST on dev blocks' own early-vs-late history, not operational data. 16/24 scored blocks have too few positives, or too few in the later chronological slice, to even attempt local recalibration -- read as evidence about data sparsity, not just the mechanism. Does not change gate G6, which remains failing pending a real season of operational history -- see GATE_REMEDIATION_PLAN.md Phase D."
+}

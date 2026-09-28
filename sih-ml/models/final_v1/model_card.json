@@ -1,0 +1,109 @@
+{
+  "model": "LightGBM + per-slope isotonic calibration",
+  "frozen_config": {
+    "lgbm": {
+      "objective": "binary",
+      "boosting_type": "gbdt",
+      "learning_rate": 0.03218814577630251,
+      "num_leaves": 4,
+      "max_depth": 11,
+      "min_child_samples": 364,
+      "min_split_gain": 0.8392636293753901,
+      "subsample": 0.6971305573243116,
+      "subsample_freq": 1,
+      "colsample_bytree": 0.8531476828735367,
+      "reg_alpha": 1.9787843500081188,
+      "reg_lambda": 0.23696573020861914,
+      "n_estimators": 1200,
+      "early_stopping_rounds": 80,
+      "max_bin": 255,
+      "verbosity": -1,
+      "auto_scale_pos_weight": true,
+      "monotone_rainfall_features": [
+        "rain_1d_mm",
+        "rain_3d_mm",
+        "rain_7d_mm",
+        "rain_15d_mm",
+        "rain_30d_mm",
+        "rain_max_1d_in_3d_mm",
+        "api_mm",
+        "id_ratio_1d",
+        "id_ratio_3d",
+        "id_ratio_7d"
+      ],
+      "early_stopping_metric": "pr_auc",
+      "scale_pos_weight_mult": 0.1381132349355172
+    },
+    "n_estimators_final": 1200,
+    "cv_mean_best_iter": 944.8,
+    "cv": {
+      "es_split_mode": "event",
+      "drop_buffer_rows": true
+    },
+    "scorer": "composite/passed",
+    "ensemble_weights": null,
+    "calibration": "per_slope_isotonic",
+    "operating_threshold": 0.05667060212514758,
+    "cost_fn_over_fp": 20.0,
+    "composite_steps": [
+      "aug/gaussian_all_s0.1",
+      "aug/smote_k5_f0.5"
+    ]
+  },
+  "config_sha256_16": "5c8ab2326f9c5b5c",
+  "trained_on": "all dev rows (everything outside the locked final_test)",
+  "n_train_rows": 80688,
+  "n_earlystop_rows": 14281,
+  "best_iteration": 1199,
+  "test_metrics": {
+    "n": 8277,
+    "n_pos": 1344,
+    "base_rate": 0.16237767306995288,
+    "average_precision": 0.37600301127272495,
+    "roc_auc": 0.7878677632166382,
+    "brier": 0.11736268721567973,
+    "ece": 0.046897725405868736,
+    "precision@10": 1.0,
+    "recall@10": 0.00744047619047619,
+    "precision@50": 0.84,
+    "recall@50": 0.03125,
+    "precision@100": 0.81,
+    "recall@100": 0.060267857142857144,
+    "precision@200": 0.685,
+    "recall@200": 0.10193452380952381,
+    "lift@1pct": 4.9713048623063685,
+    "lift@5pct": 2.6776009316770186,
+    "lift@10pct": 1.8966339932712215,
+    "frozen_threshold": 0.05667060212514758,
+    "tp": 1244,
+    "fp": 3133,
+    "fn": 100,
+    "tn": 3800,
+    "precision": 0.28421293123143704,
+    "recall": 0.9255952380952381,
+    "f1": 0.43488900541863307,
+    "steep_AP": 0.3689274934610299,
+    "steep_base_rate": 0.2564326210204972,
+    "steep_lift@10pct": 1.3538120488370018,
+    "steep_n": 4586,
+    "steep_roc_auc": 0.6241873142218763,
+    "n_gold": 3,
+    "gold_scores": [
+      0.5641025641025641,
+      0.5,
+      0.5
+    ],
+    "gold_percentile": [
+      0.9908179292014014,
+      0.9882807780596835,
+      0.9882807780596835
+    ]
+  },
+  "intended_use": "per-road-segment-per-day disruption risk for the Chicken's Neck / Siliguri corridor; output feeds the routing edge penalty W = dist*(1 + lambda*P)",
+  "known_limitations": [
+    "All training positives are WEAK labels (silver/bronze); only 3 verified closures exist and they are in this test split.",
+    "Region calibration does not transfer: predicted/observed varies ~3.5x across spatial folds and cannot be corrected at inference.",
+    "Rainfall is CHIRPS ~25 km daily and cannot resolve valley-scale cloudbursts; Stage 5 attributed the dominant false-negative mode to this.",
+    "The FN:FP = 20 cost ratio behind the threshold is an unvalidated placeholder; Stage 7 measured FN:FP = 10 as strictly better."
+  ]
+}

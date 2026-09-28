@@ -1,0 +1,518 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "NER System Architecture",
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow",
+    "viewBox": [
+      1380,
+      780
+    ],
+    "views": [
+      {
+        "id": "deep-website",
+        "label": "Deep Dive: Website Architecture",
+        "focus": [
+          "web_ui",
+          "web_state",
+          "web_api",
+          "gw_route"
+        ],
+        "note": "Pages render from the global store; the API client adds auth headers, caches responses, and calls the gateway."
+      },
+      {
+        "id": "deep-flutter",
+        "label": "Deep Dive: Flutter App Architecture",
+        "focus": [
+          "fl_ui",
+          "fl_state",
+          "fl_local",
+          "fl_net",
+          "gw_route"
+        ],
+        "note": "Widgets read BLoC/Riverpod state; state persists to Hive/SQLite and calls the gateway through Dio with an auth interceptor."
+      },
+      {
+        "id": "deep-gateway",
+        "label": "Deep Dive: API Gateway & Backend",
+        "focus": [
+          "gw_route",
+          "gw_auth",
+          "gw_logic",
+          "gw_dal",
+          "ml_api",
+          "db_pool"
+        ],
+        "note": "Requests pass routing, then JWT/rate-limit/CORS checks, then controllers that call the DB layer or proxy to ML."
+      },
+      {
+        "id": "deep-ml",
+        "label": "Deep Dive: ML Inference Engine",
+        "focus": [
+          "ml_api",
+          "ml_cache",
+          "ml_pre",
+          "ml_rt",
+          "db_pool"
+        ],
+        "note": "The wrapper checks the inference cache, else preprocesses features, runs the model, and logs predictions to the DB."
+      },
+      {
+        "id": "deep-db",
+        "label": "Deep Dive: Shared Database & Schemas",
+        "focus": [
+          "db_pool",
+          "db_engine",
+          "db_schema",
+          "gw_dal",
+          "ml_rt"
+        ],
+        "note": "Gateway and ML writes share one pool and executor, one engine, and one set of shared schemas."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "fl_ui",
+      "type": "frontend",
+      "label": "Widget Tree",
+      "sublabel": "Mobile + Desktop UI",
+      "pos": [
+        40,
+        100
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "fl_state",
+      "type": "frontend",
+      "label": "State Mgmt",
+      "sublabel": "BLoC / Riverpod",
+      "pos": [
+        250,
+        100
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "fl_net",
+      "type": "frontend",
+      "label": "Network Service",
+      "sublabel": "Dio + auth interceptor",
+      "pos": [
+        460,
+        100
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "fl_local",
+      "type": "database",
+      "label": "Local Storage",
+      "sublabel": "Prefs, Hive, Device APIs",
+      "pos": [
+        250,
+        220
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "web_ui",
+      "type": "frontend",
+      "label": "UI / View Layer",
+      "sublabel": "Pages, Components",
+      "pos": [
+        40,
+        600
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "web_state",
+      "type": "frontend",
+      "label": "State & Router",
+      "sublabel": "Auth, Store, Routes",
+      "pos": [
+        250,
+        600
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "web_api",
+      "type": "frontend",
+      "label": "API Client",
+      "sublabel": "HTTP, Interceptors",
+      "pos": [
+        460,
+        600
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "tag": "response cache"
+    },
+    {
+      "id": "gw_route",
+      "type": "backend",
+      "label": "Routing & Proxy",
+      "sublabel": "Handlers, Middleware",
+      "pos": [
+        710,
+        240
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "gw_auth",
+      "type": "security",
+      "label": "Auth & Security",
+      "sublabel": "JWT, Rate limit, CORS",
+      "pos": [
+        710,
+        340
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "gw_logic",
+      "type": "backend",
+      "label": "Controllers",
+      "sublabel": "App handler, ML proxy",
+      "pos": [
+        710,
+        440
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "gw_dal",
+      "type": "backend",
+      "label": "Data Access",
+      "sublabel": "ORM, Conn pooling",
+      "pos": [
+        710,
+        540
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "ml_api",
+      "type": "backend",
+      "label": "Inference API",
+      "sublabel": "FastAPI / Triton",
+      "pos": [
+        960,
+        100
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "ml_pre",
+      "type": "backend",
+      "label": "Preprocessing",
+      "sublabel": "Cleansing, Features",
+      "pos": [
+        960,
+        200
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "ml_rt",
+      "type": "backend",
+      "label": "Model Runtime",
+      "sublabel": "ONNX / PyTorch",
+      "pos": [
+        960,
+        300
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "ml_cache",
+      "type": "database",
+      "label": "Inference Cache",
+      "sublabel": "Outputs, Features",
+      "pos": [
+        1170,
+        200
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "db_pool",
+      "type": "database",
+      "label": "Pool & Executor",
+      "sublabel": "Connections, Queries",
+      "pos": [
+        960,
+        480
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "db_engine",
+      "type": "database",
+      "label": "DB Engine",
+      "sublabel": "Tables, Indexes",
+      "pos": [
+        960,
+        580
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "db_schema",
+      "type": "database",
+      "label": "Shared Schemas",
+      "sublabel": "Users, State, ML logs",
+      "pos": [
+        960,
+        680
+      ],
+      "size": [
+        170,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Flutter App",
+      "wraps": [
+        "fl_ui",
+        "fl_state",
+        "fl_net",
+        "fl_local"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Website",
+      "wraps": [
+        "web_ui",
+        "web_state",
+        "web_api"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "API Gateway / Backend",
+      "wraps": [
+        "gw_route",
+        "gw_auth",
+        "gw_logic",
+        "gw_dal"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Shared ML Model Service",
+      "wraps": [
+        "ml_api",
+        "ml_pre",
+        "ml_rt",
+        "ml_cache"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Shared Database",
+      "wraps": [
+        "db_pool",
+        "db_engine",
+        "db_schema"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "fl-ui-state",
+      "from": "fl_ui",
+      "to": "fl_state"
+    },
+    {
+      "id": "fl-state-net",
+      "from": "fl_state",
+      "to": "fl_net"
+    },
+    {
+      "id": "fl-state-local",
+      "from": "fl_state",
+      "to": "fl_local",
+      "label": "persist",
+      "variant": "dashed",
+      "labelAt": [
+        335,
+        190
+      ]
+    },
+    {
+      "id": "fl-net-gw",
+      "from": "fl_net",
+      "to": "gw_route",
+      "label": "HTTPS / JSON",
+      "variant": "emphasis"
+    },
+    {
+      "id": "web-ui-state",
+      "from": "web_ui",
+      "to": "web_state"
+    },
+    {
+      "id": "web-state-api",
+      "from": "web_state",
+      "to": "web_api"
+    },
+    {
+      "id": "web-api-gw",
+      "from": "web_api",
+      "to": "gw_route",
+      "label": "HTTPS / JSON",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gw-route-auth",
+      "from": "gw_route",
+      "to": "gw_auth"
+    },
+    {
+      "id": "gw-auth-logic",
+      "from": "gw_auth",
+      "to": "gw_logic"
+    },
+    {
+      "id": "gw-logic-dal",
+      "from": "gw_logic",
+      "to": "gw_dal"
+    },
+    {
+      "id": "gw-logic-ml",
+      "from": "gw_logic",
+      "to": "ml_api",
+      "label": "ML proxy"
+    },
+    {
+      "id": "gw-dal-db",
+      "from": "gw_dal",
+      "to": "db_pool",
+      "label": "SQL"
+    },
+    {
+      "id": "ml-api-cache",
+      "from": "ml_api",
+      "to": "ml_cache",
+      "label": "lookup",
+      "variant": "dashed"
+    },
+    {
+      "id": "ml-api-pre",
+      "from": "ml_api",
+      "to": "ml_pre"
+    },
+    {
+      "id": "ml-pre-rt",
+      "from": "ml_pre",
+      "to": "ml_rt"
+    },
+    {
+      "id": "ml-rt-db",
+      "from": "ml_rt",
+      "to": "db_pool",
+      "label": "log predictions",
+      "variant": "dashed",
+      "labelAt": [
+        1045,
+        420
+      ]
+    },
+    {
+      "id": "db-pool-engine",
+      "from": "db_pool",
+      "to": "db_engine"
+    },
+    {
+      "id": "db-engine-schema",
+      "from": "db_engine",
+      "to": "db_schema"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Clients",
+      "items": [
+        "Flutter: widgets \u2192 BLoC/Riverpod \u2192 Dio",
+        "Website: pages \u2192 store/router \u2192 API client"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Gateway",
+      "items": [
+        "Route \u2192 JWT/rate limit/CORS \u2192 controllers",
+        "Controllers call the DB layer or proxy to ML"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "ML + Data",
+      "items": [
+        "Cache hit or preprocess \u2192 model runtime",
+        "One pool, engine, and schema set"
+      ]
+    }
+  ]
+}

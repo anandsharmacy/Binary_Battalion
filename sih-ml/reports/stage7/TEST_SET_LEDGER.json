@@ -1,0 +1,74 @@
+{
+  "openings": [
+    {
+      "utc": "2026-09-11T12:55:17.179165+00:00",
+      "config_sha256_16": "5c8ab2326f9c5b5c",
+      "git_sha": "nogit",
+      "average_precision": 0.37600301127272495,
+      "n_rows": 8277
+    },
+    {
+      "utc": "2026-09-11T13:38:40.434166+00:00",
+      "kind": "report",
+      "config_sha256_16": "5c8ab2326f9c5b5c",
+      "git_sha": "nogit",
+      "average_precision": 0.37600301127272495,
+      "n_rows": 8277,
+      "note": "Stage 8 reporting/robustness read \u2014 no selection, config unchanged"
+    },
+    {
+      "utc": "2026-09-11T13:40:31.551609+00:00",
+      "kind": "report",
+      "config_sha256_16": "5c8ab2326f9c5b5c",
+      "git_sha": "nogit",
+      "average_precision": 0.37600301127272495,
+      "n_rows": 8277,
+      "note": "Stage 8 reporting/robustness read \u2014 no selection, config unchanged"
+    },
+    {
+      "utc": "2026-09-11T13:47:32.212159+00:00",
+      "kind": "report",
+      "config_sha256_16": "5c8ab2326f9c5b5c",
+      "git_sha": "nogit",
+      "average_precision": 0.37600301127272495,
+      "n_rows": 8277,
+      "note": "Stage 8 reporting/robustness read \u2014 no selection, config unchanged"
+    },
+    {
+      "utc": "2026-09-11T13:49:26.217368+00:00",
+      "kind": "report",
+      "config_sha256_16": "5c8ab2326f9c5b5c",
+      "git_sha": "nogit",
+      "average_precision": 0.37600301127272495,
+      "n_rows": 8277,
+      "note": "Stage 8 reporting/robustness read \u2014 no selection, config unchanged"
+    },
+    {
+      "utc": "2026-09-11T13:51:25.555243+00:00",
+      "kind": "report",
+      "config_sha256_16": "5c8ab2326f9c5b5c",
+      "git_sha": "nogit",
+      "average_precision": 0.37600301127272495,
+      "n_rows": 8277,
+      "note": "Stage 8 reporting/robustness read \u2014 no selection, config unchanged"
+    },
+    {
+      "utc": "2026-09-22T14:27:35.633266+00:00",
+      "kind": "retrospective",
+      "reason": "stage9 remediation revalidation (final_v2) -- reconstructed, not observed",
+      "caller": "run_remediate.py::main (bypassed the ledger)",
+      "config_sha256_16": "5aed65f3f8729060",
+      "occurred": "2026-09-12, per REMEDIATION.md section E and reports/stage9/",
+      "note": "Stage 9 opened the locked split by calling data.final_test_index() directly, before that method was guarded, so no entry was written at the time. Every final_v2 test number (AP 0.2146 in-scope, precision@100 0.290, steep ROC 0.630, calibration 2.65x) comes from this opening. The utc field is when this record was WRITTEN, not when the opening happened -- backdating an audit record would be worse than the gap it documents. Recorded on adding the guard in Data.final_test_index()."
+    },
+    {
+      "utc": "2026-09-23T17:20:35.605369+00:00",
+      "kind": "access",
+      "reason": "Phase C: paired v2/v6 opening under PREREGISTRATION_V3",
+      "caller": "final_test_v3.py::main",
+      "config_sha256_16": null,
+      "n_rows": 8533,
+      "n_positives": 1281
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "written_utc": "2026-09-23T18:00:00+00:00",
+  "purpose": "Phase C: the original 'freeze a fresh holdout' plan is void -- coolr_glc, the only in-scope label source, still ends 2017-07-10, so every 2019+ row is 0% in-scope. This opening instead validates final_v6 (D1_rainfall_coverage + X7_imerg_daily), the project's first superiority ACCEPT (+0.0408 dev AP, 5/5 folds, 3/3 seeds), which has never been scored on the locked split, against the current release champion final_v2 on the SAME (current) locked split.",
+  "why_not_stage9_numbers": "The locked split's base rate moved 0.0966 (Stage 9, 7,674 rows) -> 0.150 (current, 8,533 rows) when the P0 rebuild swapped block BLK_006_007 in for BLK_006_008. Gates keyed to base rate (AP/base>2.0, precision@100) are not comparable across that change, so Stage 9's recorded gate values are context only, never the baseline for this comparison.",
+  "models": [
+    {
+      "name": "final_v2",
+      "registry_version": "final_v2",
+      "role": "release champion",
+      "state_as_registered": {
+        "coverage_mask": false,
+        "composite_steps": [
+          "aug/gaussian_all_s0.1",
+          "aug/smote_k5_f0.5"
+        ],
+        "lgbm": {},
+        "add_features": [],
+        "bag": 1
+      },
+      "registered_per_seed_dev_AP": {
+        "42": 0.3918244926033641,
+        "1337": 0.41688223546195396,
+        "2024": 0.39823798857912773
+      }
+    },
+    {
+      "name": "final_v6",
+      "registry_version": "final_v6",
+      "role": "candidate",
+      "state_as_registered": {
+        "coverage_mask": true,
+        "composite_steps": [
+          "aug/gaussian_all_s0.1",
+          "aug/smote_k5_f0.5",
+          "data/weight_uniform"
+        ],
+        "lgbm": {},
+        "add_features": [
+          "imerg_daily"
+        ],
+        "bag": 1
+      },
+      "registered_per_seed_dev_AP": {
+        "42": 0.42387009745103865,
+        "1337": 0.4283398036952972,
+        "2024": 0.4296292561269248
+      },
+      "note": "not v2+IMERG alone -- lineage also carries data/weight_uniform (adopted v3-v5); this is release-champion vs release-candidate, not a single-variable ablation"
+    }
+  ],
+  "both_retrained_on_current_dev_panel": true,
+  "why_retrain_v2": "models/final_v2/model_card.json fingerprint 45c695ea5427d643 was fit 2026-09-12, before the P0 rebuild moved BLK_006_007 from dev into the locked split. Scoring that saved artifact on the current split would score it partly on rows it has already trained on. Retrained fresh here on the current dev panel, same registered state, same procedure as final_v6.",
+  "opening_reason": "Phase C: paired v2/v6 opening under PREREGISTRATION_V3",
+  "cost_fn_over_fp": 20,
+  "success_rule": {
+    "baseline": "final_v2",
+    "candidate": "final_v6",
+    "primary_metric": "full_in_scope.average_precision",
+    "rule": "candidate > baseline",
+    "on_success": "promote final_v6 to release champion",
+    "on_failure": "final_v2 remains the release champion. final_v6 remains dev-only. The shortfall is recorded plainly: a +0.0408 dev AP gain at 5/5 folds and 3/3 seeds did not transfer to the locked split. No re-investigation, no alternate metric substituted after the fact.",
+    "decided_before_opening": true
+  },
+  "reported_populations": {
+    "full_in_scope": "headline; comparable between the two models",
+    "BLK_006_007_only": "the block swapped in by the P0 rebuild; 1,556 rows, 909 positives (58% positive) -- the only strictly never-scored-by-any-model slice. Flagged: precision@100 is close to meaningless at this base rate; read ranking metrics (AP, ROC) here, not precision@k.",
+    "shared_v1v2_blocks_in_scope": "BLK_004_006 + BLK_004_007 + BLK_005_004 + BLK_006_008 + BLK_009_005, in-scope rows only -- disclosed as a third look for v1/v2-era models, not the headline."
+  },
+  "disclosed_before_opening": [
+    "41 of 8,533 locked-test rows (0.48%, all negatives, all dated after IMERG's 2025-09-30 record end) get NaN IMERG features for final_v6; LightGBM handles NaN natively, not patched.",
+    "final_v6 improved dev AP and steep ROC but pushed worst-terrain calibration the wrong way (1.078x -> 1.178x, seed-averaged) against gate G6, which already fails at 2.65x on the Stage-9-era split. A worse G6 here does not retroactively invalidate an AP win under this rule."
+  ],
+  "models_sha256_16": "744397f2ad60fb32",
+  "config_sha256_16": "744397f2ad60fb32"
+}
