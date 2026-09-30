@@ -14,6 +14,7 @@ import '../../shared/widgets/app_header.dart';
 import '../../shared/widgets/confirm_dialog.dart';
 import '../../shared/widgets/offline_banner.dart';
 import '../../features/profile/profile_sheet.dart';
+import '../alerts/push_navigation.dart';
 import '../../theme/colors.dart';
 import '../ml/application/ml_providers.dart';
 import '../auth/application/auth_controller.dart';
@@ -56,11 +57,19 @@ class _RiderShellState extends ConsumerState<RiderShell> {
     _refresh = Timer.periodic(const Duration(seconds: 45), (_) {
       if (mounted) ref.invalidate(riderContextProvider);
     });
+    // The rider tapped a "new shipment" push notification (app was
+    // backgrounded or terminated): jump to Deliveries so they can respond.
+    riderShipmentTapSignal.addListener(_onShipmentTap);
+  }
+
+  void _onShipmentTap() {
+    if (mounted) setState(() => _nav = RiderNav.deliveries);
   }
 
   @override
   void dispose() {
     _refresh?.cancel();
+    riderShipmentTapSignal.removeListener(_onShipmentTap);
     super.dispose();
   }
 

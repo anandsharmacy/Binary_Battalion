@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "419073754880",
+    "project_id": "ner-logistics-b77de",
+    "storage_bucket": "ner-logistics-b77de.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:419073754880:android:50bb3edcbafc7ca5bf15e5",
+        "android_client_info": {
+          "package_name": "in.gov.ner.ner_logistics"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2Sq-UKznhx48HYYEPpTK2R-WU9QBr22A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

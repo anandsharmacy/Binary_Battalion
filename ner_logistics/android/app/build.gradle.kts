@@ -65,3 +65,11 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// FCM push (supabase/functions/notify/README.md): applying this plugin without
+// google-services.json present fails the build, so it stays off until the file
+// is added here (Firebase console > Project settings > download for the
+// in.gov.ner.ner_logistics Android app).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
