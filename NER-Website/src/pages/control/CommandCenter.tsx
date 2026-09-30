@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { MlTopAlertsPanel } from '@/components/MlRisk';
 import MapViz, { type MapLayer } from '@/components/MapViz';
 import Modal from '@/components/Modal';
@@ -6,7 +6,7 @@ import { SeverityBadge, StatusBadge, AccessibilityBadge } from '@/components/Sta
 import type { Severity } from '@/data/demo';
 import { getIncidents, subscribeToIncidents, type StoredIncident } from '@/lib/incidentStore';
 import { getTasks, subscribeToTasks } from '@/lib/taskStore';
-import { Card, CardHeader, BORDER, SURFACE_2, NAVY, TEAL, GOLD } from '../fo/ui';
+import { Card, CardHeader, BORDER, SURFACE_2, TEAL, GOLD } from '../fo/ui';
 
 /* ────────────────────────────────────────────────────────────────
    Regional Control Center — Command Center dashboard.
@@ -14,15 +14,28 @@ import { Card, CardHeader, BORDER, SURFACE_2, NAVY, TEAL, GOLD } from '../fo/ui'
    regional intelligence) using the exact shared design system.
 ──────────────────────────────────────────────────────────────── */
 
-const MAP_LAYERS: { key: MapLayer; label: string }[] = [
-  { key: 'risk', label: 'Risk' },
-  { key: 'incidents', label: 'Incidents' },
-  { key: 'routes', label: 'Routes' },
-  { key: 'logistics', label: 'Logistics' },
-  { key: 'ml', label: 'ML road risk' },
-  { key: 'flood', label: 'Flood hazard' },
-  { key: 'landslide', label: 'Landslides' },
+const MAP_LAYERS: { key: MapLayer; label: string; dot: string }[] = [
+  { key: 'risk', label: 'Risk', dot: '#D97A1F' },
+  { key: 'incidents', label: 'Incidents', dot: '#B3261E' },
+  { key: 'routes', label: 'Routes', dot: '#2E9B63' },
+  { key: 'logistics', label: 'Logistics', dot: '#9FB4CC' },
+  { key: 'ml', label: 'ML risk', dot: '#B3261E' },
+  { key: 'flood', label: 'Flood', dot: '#9FB4CC' },
+  { key: 'landslide', label: 'Landslides', dot: '#D97A1F' },
 ];
+
+const CC_NAVY = '#0E2A47';
+const CC_RED = '#B3261E';
+const CC_ORANGE = '#D97A1F';
+const CC_MUTED = '#5B6472';
+const CC_LINE = 'rgba(91,100,114,.24)';
+const SEV_STYLE: Record<Severity, { label: string; icon: string; fg: string; bg: string; bd: string }> = {
+  CRITICAL: { label: 'Critical', icon: '●', fg: CC_RED, bg: 'rgba(179,38,30,.08)', bd: 'rgba(179,38,30,.4)' },
+  HIGH: { label: 'High', icon: '▲', fg: '#B0601A', bg: 'rgba(217,122,31,.1)', bd: 'rgba(217,122,31,.45)' },
+  MODERATE: { label: 'Moderate', icon: '▲', fg: '#B0601A', bg: 'rgba(217,122,31,.1)', bd: 'rgba(217,122,31,.45)' },
+  LOW: { label: 'Low', icon: '●', fg: '#1E6B45', bg: 'rgba(30,107,69,.08)', bd: 'rgba(30,107,69,.35)' },
+};
+const prettyStatus = (s?: string) => (s || '—').replace(/_/g, ' ').toLowerCase().replace(/^./, c => c.toUpperCase());
 
 function riskColor(s: number) {
   return s > 75 ? '#BE2424' : s > 60 ? '#C25A1A' : s > 40 ? '#C4861A' : '#2D6B4F';
@@ -37,6 +50,25 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
   const [updatedTick, setUpdatedTick] = useState('just now');
   const [mapLayers, setMapLayers] = useState<Record<MapLayer, boolean>>({ risk: true, incidents: true, routes: true, logistics: true, ml: false, flood: false, landslide: false });
   const [reviewIncident, setReviewIncident] = useState<StoredIncident | null>(null);
+  const mapBoxRef = useRef<HTMLElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [mapFsHeight, setMapFsHeight] = useState(0);
+
+  useEffect(() => {
+    const sync = () => {
+      const on = document.fullscreenElement === mapBoxRef.current;
+      setFullscreen(on);
+      if (on) setMapFsHeight(window.innerHeight - 47);
+    };
+    document.addEventListener('fullscreenchange', sync);
+    window.addEventListener('resize', sync);
+    return () => { document.removeEventListener('fullscreenchange', sync); window.removeEventListener('resize', sync); };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void mapBoxRef.current?.requestFullscreen();
+  };
 
   useEffect(() => subscribeToIncidents(stored => setIncidents(stored)), []);
   useEffect(() => subscribeToTasks(stored => setTasks(stored)), []);
@@ -124,19 +156,10 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
     return Math.max(20, Math.min(100, Math.round(100 - averageRisk * 0.5)));
   }, [activeIncidents]);
 
-  const kpis = useMemo(() => [
-    { label: 'Active Incidents', value: String(activeIncidents.length), color: '#C25A1A', icon: '◆' },
-    { label: 'Critical Incidents', value: String(criticalIncidents.length), color: '#BE2424', icon: '!' },
-    { label: 'Affected Routes', value: String(affectedRoutes.length), color: '#C4861A', icon: '→' },
-    { label: 'At-Risk Logistics', value: String(atRiskLogistics), color: '#2F6F7E', icon: '⊟' },
-    { label: 'Districts on Alert', value: String(districtsOnAlert), color: '#17324D', icon: '◉' },
-    { label: 'Regional Accessibility', value: String(regionalAccessibility), suffix: '/100', color: '#C25A1A', icon: '▨' },
-  ], [activeIncidents.length, affectedRoutes.length, atRiskLogistics, criticalIncidents.length, districtsOnAlert, regionalAccessibility]);
-
   const criticalList = useMemo(() => criticalIncidents.map(incident => ({
     incident,
     sev: incident.severity,
-    title: incident.status === 'ESCALATED' ? `Escalated: ${incident.type}` : `${incident.type} · ${incident.location}`,
+    title: incident.status === 'ESCALATED' ? `Escalated: ${incident.type}` : `${incident.type} — ${incident.location}`,
     meta: [
       ['Route', incident.route ?? '—'],
       ['Status', incident.status ?? '—'],
@@ -269,94 +292,117 @@ export default function CommandCenter({ setPage }: { setPage?: (p: string) => vo
     <div className="space-y-5 max-w-screen-2xl">
 
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="font-semibold text-2xl" style={{ color: '#17212B' }}>Regional Control Center</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#5A6670' }}>North Eastern Region · Live situational awareness</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border"
-            style={{ background: '#EAF4EE', borderColor: '#A8D4B8', color: '#2D6B4F' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
-            System Operational
+      <div className="flex items-baseline gap-3.5 flex-wrap">
+        <h1 className="text-[20px] font-extrabold" style={{ color: CC_NAVY }}>Regional Control Center</h1>
+        <span className="text-[12.5px]" style={{ color: CC_MUTED }}>North Eastern Region · live situational awareness</span>
+        <div className="ml-auto flex items-center gap-2 self-center">
+          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded border"
+            style={{ color: '#1E6B45', borderColor: 'rgba(30,107,69,.35)' }}>
+            <span className="w-[7px] h-[7px] rounded-full" style={{ background: '#1E6B45' }} />System operational
           </span>
           <button onClick={doRefresh} disabled={refresh === 'busy'}
-            className="text-xs px-3 py-1.5 rounded border font-medium transition-colors disabled:opacity-70"
-            style={{ borderColor: BORDER, color: TEAL }}>
-            {refresh === 'busy' ? '↻ Updating regional data…' : refresh === 'done' ? `✓ Updated ${updatedTick}` : '↻ Refresh'}
+            className="text-[11.5px] font-semibold px-2.5 py-1 rounded border disabled:opacity-70 hover:bg-[#EEF1F4]"
+            style={{ color: '#1B3F63', borderColor: CC_LINE, background: '#FBFBF9' }}>
+            {refresh === 'busy' ? '↻ Updating…' : refresh === 'done' ? `✓ Updated ${updatedTick}` : '↻ Refresh'}
           </button>
         </div>
       </div>
 
-      {/* Regional KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-        {kpis.map(k => (
-          <Card key={k.label} className="p-3.5">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-base" style={{ color: k.color }}>{k.icon}</span>
-            </div>
-            <div className="text-2xl font-bold leading-none mb-1" style={{ color: '#17212B' }}>
-              {k.value}<span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{k.suffix ?? ''}</span>
-            </div>
-            <div className="text-xs font-medium" style={{ color: '#5A6670' }}>{k.label}</div>
-          </Card>
+      {/* KPI strip */}
+      <div className="flex flex-wrap rounded-[5px] border overflow-hidden" style={{ background: '#FBFBF9', borderColor: CC_LINE }}>
+        {[
+          { v: activeIncidents.length, l: ['Active', 'incidents'], c: CC_NAVY },
+          { v: criticalIncidents.length, l: ['Critical', criticalIncidents.length === 1 ? 'incident' : 'incidents'], c: CC_RED, hot: criticalIncidents.length > 0 },
+          { v: affectedRoutes.length, l: ['Affected', affectedRoutes.length === 1 ? 'route' : 'routes'], c: CC_ORANGE },
+          { v: atRiskLogistics, l: ['At-risk', 'logistics'], c: '#1E6B45' },
+          { v: districtsOnAlert, l: ['District', 'on alert'], c: CC_NAVY },
+        ].map(k => (
+          <div key={k.l[0]} className="flex-1 min-w-[140px] flex items-center gap-2.5 px-4 py-2.5 border-r"
+            style={{ borderColor: 'rgba(91,100,114,.16)', background: k.hot ? 'rgba(179,38,30,.05)' : undefined }}>
+            <span className="text-[20px] font-extrabold tabular-nums" style={{ color: k.c }}>{k.v}</span>
+            <span className="text-xs leading-tight" style={{ color: k.hot ? CC_RED : '#3A4048', fontWeight: k.hot ? 600 : 400 }}>{k.l[0]}<br />{k.l[1]}</span>
+          </div>
         ))}
+        <div className="flex-[1.4] min-w-[200px] flex items-center gap-3 px-4 py-2.5">
+          <span className="text-[20px] font-extrabold tabular-nums" style={{ color: CC_NAVY }}>{regionalAccessibility}<span className="text-xs font-semibold" style={{ color: CC_MUTED }}>/100</span></span>
+          <div className="flex-1 flex flex-col gap-1.5">
+            <span className="text-xs" style={{ color: '#3A4048' }}>Regional accessibility</span>
+            <div className="h-[5px] rounded-sm overflow-hidden" style={{ background: 'rgba(91,100,114,.16)' }}>
+              <div className="h-full" style={{ width: `${regionalAccessibility}%`, background: regionalAccessibility >= 70 ? '#1E6B45' : regionalAccessibility >= 45 ? CC_ORANGE : CC_RED }} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Command layout: map (2col) + critical situation */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <Card className="xl:col-span-2 overflow-hidden">
-          <CardHeader title="Regional Situation Map" sub="North Eastern Region · districts, incidents, routes & logistics"
-            action={
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {MAP_LAYERS.map(({ key, label }) => {
-                  const on = mapLayers[key];
-                  return (
-                    <button key={key} onClick={() => setMapLayers(prev => ({ ...prev, [key]: !prev[key] }))} aria-pressed={on}
-                      className="text-xs px-2 py-1 rounded border transition-colors"
-                      style={{ borderColor: BORDER, color: on ? NAVY : '#5A6670', background: on ? SURFACE_2 : 'transparent' }}>
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            } />
-          <MapViz incidents={incidents} routes={liveRoutes} vehicles={liveVehicles} height={420} showLegend layers={mapLayers} />
-        </Card>
+      {/* Map + critical situation */}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_332px] gap-3.5">
+        <section ref={mapBoxRef} className="flex flex-col rounded-[5px] border overflow-hidden" style={{ background: '#FBFBF9', borderColor: CC_LINE }}>
+          <div className="min-h-[46px] flex items-center gap-3 px-3.5 py-2 border-b" style={{ borderColor: CC_LINE }}>
+            <h2 className="text-sm font-bold whitespace-nowrap" style={{ color: CC_NAVY }}>Regional Situation Map</h2>
+            <div className="w-px h-[22px] flex-none" style={{ background: CC_LINE }} />
+            <div className="flex gap-1 flex-wrap flex-1 min-w-0">
+              {MAP_LAYERS.map(({ key, label, dot }) => {
+                const on = mapLayers[key];
+                return (
+                  <button key={key} onClick={() => setMapLayers(prev => ({ ...prev, [key]: !prev[key] }))} aria-pressed={on}
+                    className="text-[11.5px] font-semibold px-2 py-1 rounded border flex items-center gap-1.5 whitespace-nowrap"
+                    style={{ borderColor: on ? CC_NAVY : 'rgba(91,100,114,.3)', background: on ? CC_NAVY : 'transparent', color: on ? '#fff' : CC_MUTED }}>
+                    <span className="w-[7px] h-[7px] rounded-sm" style={{ background: on ? dot : 'rgba(91,100,114,.35)' }} />{label}
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={toggleFullscreen} aria-label={fullscreen ? 'Exit full screen' : 'Full screen map'} title={fullscreen ? 'Exit full screen (Esc)' : 'Full screen'}
+              className="flex-none w-8 h-8 grid place-items-center rounded border hover:bg-[#EEF1F4]"
+              style={{ borderColor: 'rgba(91,100,114,.3)', color: CC_NAVY }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d={fullscreen ? 'M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6' : 'M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6'} />
+              </svg>
+            </button>
+          </div>
+          <div className={fullscreen ? 'flex-1 min-h-0' : ''}>
+            <MapViz incidents={incidents} routes={liveRoutes} vehicles={liveVehicles} height={fullscreen ? mapFsHeight : 560} showLegend layers={mapLayers} rounded="0" />
+          </div>
+        </section>
 
-        {/* Critical situation panel */}
-        <Card className="flex flex-col">
-          <CardHeader title="Critical Situation" sub="Highest-priority regional events" />
-          <div className="flex-1 overflow-y-auto divide-y" style={{ borderColor: SURFACE_2 }}>
-            {criticalList.map((c, i) => (
-              <div key={`${c.title}-${i}`} className="px-4 py-3 animate-[fadeIn_.3s_ease]">
-                <div className="flex items-center justify-between mb-1.5">
-                  <SeverityBadge severity={c.sev} />
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{c.time}</span>
-                </div>
-                <div className="text-sm font-semibold mb-1.5" style={{ color: '#17212B' }}>{c.title}</div>
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-2">
-                  {c.meta.map(([k, v]) => (
-                    <span key={k} className="text-xs" style={{ color: '#5A6670' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>{k}: </span>{v}
+        <aside className="flex flex-col rounded-[5px] border overflow-hidden xl:max-h-[607px]" style={{ background: '#FBFBF9', borderColor: CC_LINE }}>
+          <div className="px-4 py-3 flex items-baseline gap-2" style={{ borderBottom: `1.5px solid ${CC_NAVY}` }}>
+            <h2 className="text-sm font-bold" style={{ color: CC_NAVY }}>Critical Situation</h2>
+            <span className="text-[11.5px]" style={{ color: CC_MUTED }}>highest-priority events</span>
+          </div>
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {criticalList.length === 0 && (
+              <div className="px-4 py-8 text-center text-xs" style={{ color: CC_MUTED }}>No critical or escalated incidents right now.</div>
+            )}
+            {criticalList.map((c, i) => {
+              const st = SEV_STYLE[c.sev];
+              return (
+                <button key={`${c.incident.id}-${i}`} onClick={() => setReviewIncident(c.incident)}
+                  className="w-full text-left px-4 py-3 flex flex-col gap-1.5 border-b hover:bg-[rgba(14,42,71,.035)]"
+                  style={{ borderColor: 'rgba(91,100,114,.14)' }}>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-1.5 py-0.5 rounded-[3px] border"
+                      style={{ color: st.fg, background: st.bg, borderColor: st.bd }}>
+                      {st.icon} {st.label}
                     </span>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setReviewIncident(c.incident)}
-                  className="text-xs font-medium px-2.5 py-1 rounded border transition-colors cursor-pointer"
-                  style={{ borderColor: BORDER, color: TEAL }}>
-                  {c.btn} →
+                    <span className="ml-auto text-[11px] tabular-nums" style={{ color: CC_MUTED }}>{c.time}</span>
+                  </div>
+                  <div className="text-[13.5px] font-bold" style={{ color: '#1A2230' }}>{c.title}</div>
+                  <div className="grid grid-cols-[62px_1fr] gap-x-2 gap-y-0.5 text-[11.5px]">
+                    <span style={{ color: CC_MUTED }}>Route</span><span style={{ color: '#1A2230' }}>{c.incident.route || 'Not provided'}</span>
+                    <span style={{ color: CC_MUTED }}>Status</span><span className="font-semibold" style={{ color: '#1A2230' }}>{prettyStatus(c.incident.status)}</span>
+                  </div>
+                  <span className="text-xs font-semibold" style={{ color: '#1B3F63' }}>Review incident →</span>
                 </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <div className="p-3 border-t" style={{ borderColor: BORDER }}>
+          <div className="p-3 px-4 border-t" style={{ borderColor: CC_LINE }}>
             <button onClick={() => setPage?.('incidents')}
-              className="w-full text-xs font-medium px-3 py-2 rounded transition-all"
-              style={{ background: NAVY, color: 'white', minHeight: 40 }}>View All Critical Events</button>
+              className="w-full h-[38px] rounded text-[13px] font-semibold text-white hover:bg-[#1B3F63]"
+              style={{ background: CC_NAVY }}>View all critical events</button>
           </div>
-        </Card>
+        </aside>
       </div>
 
       {/* Regional Risk Intelligence */}
