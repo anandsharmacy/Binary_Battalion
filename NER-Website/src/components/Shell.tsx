@@ -41,6 +41,7 @@ const FO_NAV: NavItem[] = [
 
 const CR_NAV: NavItem[] = [
   { key: 'cr-command', label: 'Command Center', icon: 'command', gold: true },
+  { key: 'cr-corridor', label: 'Corridor Detail', icon: 'route' },
   { key: 'map',        label: 'Regional Map',   icon: 'map' },
   { key: 'logistics',  label: 'Live Logistics', icon: 'truck' },
   { key: 'shipments',  label: 'Shipments',      icon: 'inbox' },
@@ -54,6 +55,7 @@ const CR_NAV: NavItem[] = [
 
 const TITLES: Record<string, string> = {
   'cr-command': 'Command Center',
+  'cr-corridor': 'Corridor Detail',
   dashboard: 'Dashboard', map: 'District Map', incidents: 'Incidents',
   routes: 'Routes', logistics: 'Logistics', shipments: 'Shipments',
   tasks: 'Tasks', ai: 'AI Insights', alerts: 'Alerts',
