@@ -5,6 +5,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import MapViz from '@/components/MapViz';
 import { routes } from '@/data/demo';
 import type { LatLng } from '@/data/geo';
+import { AssignToRiderModal } from '@/components/ShipmentModals';
 import { fetchRiderTrail, STALE_MINUTES, useLiveRiders, type LiveRider } from '@/lib/riderTracking';
 
 const BORDER = 'rgba(180,162,136,0.55)';
@@ -28,6 +29,7 @@ export default function Logistics() {
   const [selectedRiderId, setSelectedRiderId] = useState<string | null>(null);
   const [trail, setTrail] = useState<LatLng[]>([]);
   const [trailError, setTrailError] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
   const selected = riders.find(r => r.id === selectedRiderId) ?? null;
 
   useEffect(() => {
@@ -97,8 +99,14 @@ export default function Logistics() {
         </div>
 
         <div className="rounded-xl border shadow-sm" style={PANEL}>
-          <div className="px-4 py-3 border-b" style={{ borderColor: BORDER }}>
+          <div className="px-4 py-3 border-b flex items-center justify-between gap-3" style={{ borderColor: BORDER }}>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>{selected ? selected.name : 'Rider Details'}</h2>
+            {selected && (
+              <button type="button" onClick={() => setAssigning(true)} className="ui-press text-xs font-semibold px-3 py-1.5 rounded"
+                style={{ background: '#17324D', color: 'white' }}>
+                Assign shipment
+              </button>
+            )}
           </div>
           {!selected ? (
             <EmptyState icon={<Icon name="truck" size={22} />}
@@ -175,6 +183,9 @@ export default function Logistics() {
           </table>
         </div>
       </div>
+
+      <AssignToRiderModal rider={assigning && selected ? { id: selected.id, name: selected.name } : null}
+        onClose={() => setAssigning(false)} onDone={() => setAssigning(false)} />
     </div>
   );
 }

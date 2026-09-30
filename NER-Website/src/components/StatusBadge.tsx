@@ -35,6 +35,13 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; bo
   Rejected: { label: 'Rejected', bg: '#FEE9E9', text: '#BE2424', border: '#F5B8B8' },
   Active: { label: 'Active', bg: '#EAF4EE', text: '#2D6B4F', border: '#A8D4B8' },
   Inactive: { label: 'Inactive', bg: '#F0EFED', text: 'var(--text-muted)', border: 'rgba(180,162,136,0.55)' },
+  Unassigned: { label: 'Unassigned', bg: '#F0EEE6', text: 'var(--status-pending-fg)', border: '#D8D0A8' },
+  'Awaiting rider': { label: 'Awaiting rider', bg: '#FEF8E6', text: 'var(--status-warning-fg)', border: '#F5DFA8' },
+  Accepted: { label: 'Accepted', bg: '#E6EDF4', text: '#17324D', border: '#A8BCCF' },
+  'In transit': { label: 'In transit', bg: '#E6F0F4', text: '#1E5A6E', border: '#A8CDD8' },
+  Arrived: { label: 'Arrived', bg: '#EAF4EE', text: '#2D6B4F', border: '#A8D4B8' },
+  Delivered: { label: 'Delivered', bg: '#EAF4EE', text: '#2D6B4F', border: '#A8D4B8' },
+  Cancelled: { label: 'Cancelled', bg: '#F0EFED', text: 'var(--text-muted)', border: 'rgba(180,162,136,0.55)' },
   Diverted: { label: 'Diverted', bg: '#FEF8E6', text: 'var(--status-warning-fg)', border: '#F5DFA8' },
 };
 

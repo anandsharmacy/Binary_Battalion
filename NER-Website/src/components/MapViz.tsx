@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Severity } from '@/data/demo';
 import { CORRIDORS, NER_CENTER, NER_ZOOM, locate, normalizeRouteId, type LatLng } from '@/data/geo';
 import { fetchMlSegmentsInBbox, fetchMlStatus, stateLabel, TIER_LABEL, topShare, useMlQuery, type MlSegment } from '@/lib/ml';
-import type { LiveRider } from '@/lib/riderTracking';
+import { bearingDeg, haversineM, type LiveRider } from '@/lib/riderTracking';
 
 /* ────────────────────────────────────────────────────────────────
    Interactive Leaflet map shared by all three role dashboards.
@@ -108,6 +108,9 @@ export const HAZARD_WMS = {
   },
 } as const;
 const ML_COLOR = { alert: '#BE2424', human_review: '#C4861A', none: '#2D6B4F' } as const;
+const GLIDE_MS = 2000;       // marker glide between two fixes
+const SNAP_M = 5000;         // a bigger move (rider just entered scope) is placed, not animated
+interface RiderMarker { marker: L.Marker; target: LatLng; rot: number | null; raf: number; look: string }
 const RIDER_COLOR = { active: '#2F6F7E', inactive: '#8A9098', selected: '#17324D' } as const;
 
 const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -410,36 +413,85 @@ export default function MapViz({
     return () => { group.remove(); };
   }, [map, visible.logistics, riderTrail]);
 
-  // Rider markers (live positions; all riders stay visible, the selected one is emphasised)
+  // Rider markers: kept between updates so each one glides to its new fix and its arrow turns
+  // toward the direction of travel, instead of the whole layer being rebuilt (which snaps).
+  const riderMarkers = useRef(new Map<string, RiderMarker>());
   useEffect(() => {
-    if (!map || !visible.logistics || !riders.length) return;
-    const group = L.layerGroup();
+    if (!map || !visible.logistics) return;
+    const all = riderMarkers.current;
+    return () => { all.forEach(m => { cancelAnimationFrame(m.raf); m.marker.remove(); }); all.clear(); };
+  }, [map, visible.logistics]);
+  useEffect(() => {
+    if (!map || !visible.logistics) return;
+    const all = riderMarkers.current;
+    const ids = new Set(riders.map(r => r.id));
+    all.forEach((m, id) => {
+      if (!ids.has(id)) { cancelAnimationFrame(m.raf); m.marker.remove(); all.delete(id); }
+    });
     riders.forEach(rider => {
       const selected = rider.id === selectedRiderId;
       const active = rider.onDuty && !rider.stale;
       const color = selected ? RIDER_COLOR.selected : active ? RIDER_COLOR.active : RIDER_COLOR.inactive;
+      let entry = all.get(rider.id);
+      const moved = entry && (entry.target[0] !== rider.position[0] || entry.target[1] !== rider.position[1]);
+      // Reported heading, else the bearing of this move; unwrapped so the arrow turns the short way.
+      let heading = rider.headingDeg ?? (entry && moved ? bearingDeg(entry.target, rider.position) : null);
+      if (heading != null) {
+        const cur = entry?.rot ?? heading;
+        heading = cur + ((((heading - cur) % 360) + 540) % 360) - 180;
+      } else heading = entry?.rot ?? null;
+      // The icon is only rebuilt when its look changes; otherwise the arrow turns via its CSS transition.
+      const look = `${selected}|${active}|${rider.label}|${heading == null}`;
       const icon = L.divIcon({
         className: 'ner-marker',
-        html: `<span class="ner-veh${selected ? ' is-selected' : ''}${active ? '' : ' is-idle'}" style="--c:${color}">${esc(rider.label)}</span>`,
+        html: `<span class="ner-veh${selected ? ' is-selected' : ''}${active ? '' : ' is-idle'}" style="--c:${color}">${esc(rider.label)}`
+          + `${heading == null ? '' : `<i class="ner-hdg" style="transform:rotate(${heading}deg)"></i>`}</span>`,
         iconSize: [0, 0], iconAnchor: [0, 0], popupAnchor: [0, -10],
       });
-      const marker = L.marker(rider.position, { icon, riseOnHover: true, zIndexOffset: selected ? 1000 : 0, alt: `Rider ${rider.name}` })
-        .bindTooltip(esc(rider.name), { direction: 'top', offset: [0, -10] })
-        .bindPopup(
-          `<div class="ner-pop-title">${esc(rider.name)}</div>`
-          + `<div class="ner-pop-meta">${esc(rider.district ?? 'No district')} · <span class="ner-pop-chip" style="--c:${active ? RIDER_COLOR.active : RIDER_COLOR.inactive}">${rider.stale ? 'Stale' : rider.onDuty ? 'On duty' : 'Off duty'}</span></div>`
-          + popupRows([
-            ['Last fix', new Date(rider.recordedAt).toLocaleString()],
-            ['Speed', rider.speedKmph == null ? '—' : `${Math.round(rider.speedKmph)} km/h`],
-            ['Vehicle', [rider.vehicleType, rider.vehicleRegistration].filter(Boolean).join(' · ') || '—'],
-            ['Phone', rider.phone ?? '—'],
-          ]),
-        );
-      marker.on('click', () => onSelectRiderRef.current?.(rider.id));
-      marker.addTo(group);
+      const popup = `<div class="ner-pop-title">${esc(rider.name)}</div>`
+        + `<div class="ner-pop-meta">${esc(rider.district ?? 'No district')} · <span class="ner-pop-chip" style="--c:${active ? RIDER_COLOR.active : RIDER_COLOR.inactive}">${rider.stale ? 'Stale' : rider.onDuty ? 'On duty' : 'Off duty'}</span></div>`
+        + popupRows([
+          ['Last fix', new Date(rider.recordedAt).toLocaleString()],
+          ['Speed', rider.speedKmph == null ? '—' : `${Math.round(rider.speedKmph)} km/h`],
+          ['Vehicle', [rider.vehicleType, rider.vehicleRegistration].filter(Boolean).join(' · ') || '—'],
+          ['Phone', rider.phone ?? '—'],
+        ]);
+      if (!entry) {
+        const marker = L.marker(rider.position, { icon, riseOnHover: true, alt: `Rider ${rider.name}` })
+          .bindTooltip(esc(rider.name), { direction: 'top', offset: [0, -10] })
+          .bindPopup(popup)
+          .on('click', () => onSelectRiderRef.current?.(rider.id))
+          .addTo(map);
+        entry = { marker, target: rider.position, rot: heading, raf: 0, look };
+        all.set(rider.id, entry);
+      } else {
+        const marker = entry.marker;
+        marker.setPopupContent(popup).setTooltipContent(esc(rider.name));
+        if (look !== entry.look) { marker.setIcon(icon); entry.look = look; }
+        else if (heading != null) {
+          (marker.getElement()?.querySelector('.ner-hdg') as HTMLElement | null)?.style.setProperty('transform', `rotate(${heading}deg)`);
+        }
+        if (moved) {
+          cancelAnimationFrame(entry.raf);
+          const from = marker.getLatLng();
+          const to = rider.position;
+          if (haversineM([from.lat, from.lng], to) > SNAP_M) marker.setLatLng(to);
+          else {
+            const t0 = performance.now();
+            const e = entry;
+            const step = (t: number) => {
+              const k = Math.min((t - t0) / GLIDE_MS, 1);
+              marker.setLatLng([from.lat + (to[0] - from.lat) * k, from.lng + (to[1] - from.lng) * k]);
+              if (k < 1) e.raf = requestAnimationFrame(step);
+            };
+            e.raf = requestAnimationFrame(step);
+          }
+        }
+        entry.target = rider.position;
+        entry.rot = heading;
+      }
+      entry.marker.setZIndexOffset(selected ? 1000 : 0);
     });
-    group.addTo(map);
-    return () => { group.remove(); };
   }, [map, visible.logistics, riders, selectedRiderId]);
 
   // ML road-disruption risk: coverage outline + scored segments in view (officers only; RLS-enforced)

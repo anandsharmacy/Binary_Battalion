@@ -116,8 +116,8 @@ async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
 
 export const fetchMlStatus = () => rpc<MlStatus>('ml_status');
 
-export const fetchRouteRisk = (routeId: string) =>
-  rpc<RouteRisk>('get_route_ml_risk', { p_route_id: routeId });
+export const fetchRouteRisk = (routeId: string, date?: string) =>
+  rpc<RouteRisk>('get_route_ml_risk', { p_route_id: routeId, ...(date && { p_date: date }) });
 
 export const fetchRoutesSummary = () => rpc<RoutesSummary>('get_routes_ml_summary');
 

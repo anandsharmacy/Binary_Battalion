@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
   { key: 'incidents', label: 'Incidents',     icon: 'incident', badge: 5 },
   { key: 'routes',    label: 'Routes',        icon: 'route' },
   { key: 'logistics', label: 'Logistics',     icon: 'truck' },
+  { key: 'shipments', label: 'Shipments',     icon: 'inbox' },
   { key: 'tasks',     label: 'Tasks',         icon: 'tasks' },
   { key: 'ai',        label: 'AI Insights',   icon: 'ai', gold: true },
   { key: 'alerts',    label: 'Alerts',        icon: 'alert', badge: 3 },
@@ -40,8 +41,10 @@ const FO_NAV: NavItem[] = [
 
 const CR_NAV: NavItem[] = [
   { key: 'cr-command', label: 'Command Center', icon: 'command', gold: true },
+  { key: 'cr-corridor', label: 'Corridor Detail', icon: 'route' },
   { key: 'map',        label: 'Regional Map',   icon: 'map' },
   { key: 'logistics',  label: 'Live Logistics', icon: 'truck' },
+  { key: 'shipments',  label: 'Shipments',      icon: 'inbox' },
   { key: 'ai',         label: 'AI Predictions', icon: 'ai' },
   { key: 'incidents',  label: 'Incidents',      icon: 'incident' },
   { key: 'routes',     label: 'Routes',         icon: 'route' },
@@ -52,8 +55,9 @@ const CR_NAV: NavItem[] = [
 
 const TITLES: Record<string, string> = {
   'cr-command': 'Command Center',
+  'cr-corridor': 'Corridor Detail',
   dashboard: 'Dashboard', map: 'District Map', incidents: 'Incidents',
-  routes: 'Routes', logistics: 'Logistics',
+  routes: 'Routes', logistics: 'Logistics', shipments: 'Shipments',
   tasks: 'Tasks', ai: 'AI Insights', alerts: 'Alerts',
   reports: 'Reports', analytics: 'Analytics', approvals: 'Approvals',
   'fo-dashboard': 'Field Dashboard', 'fo-tasks': 'My Tasks', 'fo-report': 'Report Incident',
