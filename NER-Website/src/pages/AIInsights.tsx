@@ -47,7 +47,7 @@ export default function AIInsights() {
         style={{ background: 'rgba(238,228,210,0.88)', borderColor: 'rgba(180,162,136,0.55)' }}>
         <span className="text-lg" style={{ color: '#D7A73A' }}>✦</span>
         <p className="text-xs" style={{ color: '#5A6670' }}>
-          <strong>Road Disruption Risk</strong> is the NER model's daily ranking of every corridor road segment by
+          <strong>Road Disruption Risk</strong> is the NER model's daily ranking of every road segment it covers by
           rainfall-triggered disruption risk. Every panel here is derived from that model's published runs. All of it is advisory, not confirmed
           fact — District Officer discretion required.
         </p>
@@ -59,7 +59,7 @@ export default function AIInsights() {
         <div className="rounded-xl border shadow-sm lg:col-span-2" style={{ background: 'rgba(250,247,240,0.82)', borderColor: 'rgba(180,162,136,0.55)' }}>
           <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(180,162,136,0.55)', background: 'rgba(238,228,210,0.88)' }}>
             <h2 className="font-semibold text-base" style={{ color: '#17212B' }}>Road Disruption Risk</h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Model output · rainfall-triggered landslide and flood risk per road segment</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Model output · rainfall-triggered landslide ranking per covered road segment; floods are not modelled</p>
           </div>
           <div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-6">
             <section className="space-y-2">

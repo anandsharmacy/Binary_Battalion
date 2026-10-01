@@ -309,7 +309,7 @@ export default function CorridorDetail({ setPage }: { setPage?: (p: string) => v
               {risk.loading && !risk.data && !risk.signedOut && <LoadingRows label="Loading corridor risk…" />}
               {current && current.state !== 'unavailable' && !covered && (
                 <p className="text-xs rounded-lg border px-3 py-2" style={{ color: MUTED, borderColor: BORDER }}>
-                  This corridor is outside ML model coverage (Siliguri corridor, Sikkim, North Bengal). Status below comes from field reports.
+                  This corridor is outside ML model coverage (Siliguri corridor, Sikkim, North Bengal, Kamrup Metropolitan, Dima Hasao and Manipur). Status below comes from field reports.
                 </p>
               )}
               {factors.length > 0 && (
@@ -319,7 +319,7 @@ export default function CorridorDetail({ setPage }: { setPage?: (p: string) => v
                       display={f.value == null ? '—' : f.pct ? `${Math.round(f.value)}%` : undefined} />
                   ))}
                   <p className="text-xs mt-2" style={{ color: MUTED }}>
-                    {s!.n_alert} high-risk and {s!.n_human_review} review segments ({flagged} flagged) · riskiest is {topShare(s!.max_percentile)} of corridor roads.
+                    {s!.n_alert} high-risk and {s!.n_human_review} review segments ({flagged} flagged) · riskiest is {topShare(s!.max_percentile)} of covered roads.
                   </p>
                 </div>
               )}
