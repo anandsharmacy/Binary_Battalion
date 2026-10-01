@@ -33,7 +33,18 @@ export interface MlMeta {
 export interface MlStatus extends MlMeta {
   tier_counts?: Partial<Record<MlTier, number>>;
   coverage_bbox?: [number, number, number, number] | null;
+  coverage_polygons?: MlCoveragePolygon[];
   alert_capacity?: number;
+}
+
+export type MlCoverageGeometry =
+  | { type: 'Polygon'; coordinates: number[][][] }
+  | { type: 'MultiPolygon'; coordinates: number[][][][] };
+
+export interface MlCoveragePolygon {
+  region: string;
+  label: string;
+  geometry: MlCoverageGeometry;
 }
 
 export interface MlSegment {

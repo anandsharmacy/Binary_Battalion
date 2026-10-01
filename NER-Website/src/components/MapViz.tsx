@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Severity } from '@/data/demo';
 import { CORRIDORS, NER_CENTER, NER_ZOOM, locate, normalizeRouteId, type LatLng } from '@/data/geo';
-import { fetchMlSegmentsInBbox, fetchMlStatus, stateLabel, TIER_LABEL, topShare, useMlQuery, type MlSegment } from '@/lib/ml';
+import { fetchMlSegmentsInBbox, fetchMlStatus, stateLabel, TIER_LABEL, topShare, useMlQuery, type MlCoveragePolygon, type MlSegment } from '@/lib/ml';
 import { bearingDeg, haversineM, type LiveRider } from '@/lib/riderTracking';
 
 /* ────────────────────────────────────────────────────────────────
@@ -85,6 +85,12 @@ const routeColor: Record<string, string> = {
 };
 const NEUTRAL_ROUTE = '#7E8C7C';
 const DEFAULT_LAYERS: Record<MapLayer, boolean> = { routes: true, incidents: true, logistics: true, risk: false, ml: false, flood: false, landslide: false };
+const ML_COVERAGE_COLORS: Record<string, string> = { corridor: '#17324D', ne: '#C25A1A' };
+const NO_ML_COVERAGE: MlCoveragePolygon[] = [];
+
+function mlCoverageColor(region: string): string {
+  return ML_COVERAGE_COLORS[region] ?? '#2F6F7E';
+}
 
 /** Public ISRO Bhuvan (NRSC) hazard layers, verified with GetMap in EPSG:3857 on 2026-09-27. */
 const BHUVAN = '<a href="https://bhuvan.nrsc.gov.in">ISRO Bhuvan / NRSC</a>';
@@ -164,6 +170,7 @@ export default function MapViz({
 
   const visible = { ...DEFAULT_LAYERS, ...layers };
   const mlStatus = useMlQuery(fetchMlStatus);
+  const mlCoverage = mlStatus.data?.coverage_polygons ?? NO_ML_COVERAGE;
   const mlBbox = mlStatus.data?.coverage_bbox ?? null;
   const mlBboxKey = mlBbox?.join(',') ?? '';
   const focusId = focusRouteId ? normalizeRouteId(focusRouteId) : null;
@@ -494,15 +501,35 @@ export default function MapViz({
     });
   }, [map, visible.logistics, riders, selectedRiderId]);
 
-  // ML road-disruption risk: coverage outline + scored segments in view (officers only; RLS-enforced)
+  // Coverage boundaries are per model region; never imply the gap between regions is covered.
   useEffect(() => {
-    if (!map || !visible.ml || !mlBboxKey) return;
-    const [w, s, e, n] = mlBboxKey.split(',').map(Number);
-    const outline = L.rectangle([[s, w], [n, e]], {
-      color: '#17324D', weight: 1.5, dashArray: '6 5', fill: false, interactive: false,
-    }).addTo(map);
-    return () => { outline.remove(); };
-  }, [map, visible.ml, mlBboxKey]);
+    if (!map || !visible.ml || (!mlCoverage.length && !mlBboxKey)) return;
+    const group = L.layerGroup();
+    if (mlCoverage.length) {
+      mlCoverage.forEach((region: MlCoveragePolygon) => {
+        const color = mlCoverageColor(region.region);
+        L.geoJSON(region.geometry, {
+          style: {
+            color,
+            weight: 2,
+            opacity: 0.95,
+            dashArray: region.region === 'ne' ? '2 4' : '7 5',
+            fillColor: color,
+            fillOpacity: 0.035,
+          },
+          interactive: false,
+          bubblingMouseEvents: false,
+        }).addTo(group);
+      });
+    } else {
+      const [west, south, east, north] = mlBboxKey.split(',').map(Number);
+      L.rectangle([[south, west], [north, east]], {
+        color: '#17324D', weight: 1.5, dashArray: '6 5', fill: false, interactive: false,
+      }).addTo(group);
+    }
+    group.addTo(map);
+    return () => { group.remove(); };
+  }, [map, visible.ml, mlCoverage, mlBboxKey]);
 
   useEffect(() => {
     if (!map || !visible.ml || mlStatus.signedOut) {
@@ -605,13 +632,36 @@ export default function MapViz({
     ...(visible.ml ? [
       { color: ML_COLOR.alert, label: 'ML: high disruption risk', kind: 'dot' },
       { color: ML_COLOR.human_review, label: 'ML: needs officer review', kind: 'dot' },
-      { color: '#17324D', label: 'ML model coverage', kind: 'dash' },
+      ...(mlCoverage.length
+        ? mlCoverage.map(region => ({ color: mlCoverageColor(region.region), label: `Coverage: ${region.label}`, kind: 'dash' as const }))
+        : mlBboxKey ? [{ color: '#17324D', label: 'ML model coverage', kind: 'dash' as const }] : []),
     ] : []),
   ];
 
   return (
     <div className="relative isolate overflow-hidden" style={{ height, borderRadius: rounded }}>
       <div ref={containerRef} className={`ner-map h-full w-full${pickable ? ' is-picking' : ''}`} />
+
+      {visible.ml && mlCoverage.length > 0 && (
+        <button
+          type="button"
+          className="ui-glass absolute top-3 right-3 z-[1000] px-2.5 py-1.5 rounded-md text-xs font-medium shadow-sm"
+          style={{ '--glass-tint': '250,247,240', '--glass-alpha': 0.94, '--glass-blur': '8px', border: '1px solid rgba(200,186,164,0.7)', color: '#17324D' } as React.CSSProperties}
+          title="Fit map to all covered ML regions"
+          aria-label="Fit map to all covered ML regions"
+          onClick={() => {
+            if (!map) return;
+            const bounds = L.latLngBounds([]);
+            mlCoverage.forEach(region => {
+              const regionBounds = L.geoJSON(region.geometry).getBounds();
+              if (regionBounds.isValid()) bounds.extend(regionBounds);
+            });
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [32, 32], maxZoom: 7 });
+          }}
+        >
+          Fit ML coverage
+        </button>
+      )}
 
       {loading && (
         <div className="absolute inset-0 z-[1100] flex flex-col items-center justify-center gap-3 pointer-events-none"
