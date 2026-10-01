@@ -61,7 +61,7 @@ export function MlPercentileBar({ percentile }: { percentile: number | null | un
   const steps = percentile == null ? 0 : percentile >= 99 ? 5 : percentile >= 95 ? 4 : percentile >= 80 ? 3 : percentile >= 50 ? 2 : 1;
   const color = steps >= 5 ? '#BE2424' : steps >= 4 ? '#C25A1A' : steps >= 3 ? '#C4861A' : '#2D6B4F';
   return (
-    <span className="inline-flex items-center gap-2" aria-label={`${topShare(percentile)} of corridor roads`}>
+    <span className="inline-flex items-center gap-2" aria-label={`${topShare(percentile)} of covered roads`}>
       <span className="inline-grid gap-0.5" style={{ gridTemplateColumns: 'repeat(5, 10px)' }} aria-hidden="true">
         {[1, 2, 3, 4, 5].map((i) => (
           <span key={i} style={{ height: 8, borderRadius: 1, background: i <= steps ? color : 'rgba(180,162,136,0.45)' }} />
@@ -103,7 +103,8 @@ export function MlCaveat({ meta }: { meta: MlMeta | null }) {
       {meta.state === 'replay'
         ? `Replay of historical rainfall (${formatMlDate(meta.score_date)}) — not today's conditions. `
         : ''}
-      Ranked against every corridor road for that day. Advisory only: verify before rerouting or closing a road.
+      Landslide ranking only for the covered areas; floods are not labelled or modelled, and this is not a closure probability.
+      Ranked against every road its model covers for that day. Advisory only: verify before rerouting or closing a road.
     </p>
   );
 }
@@ -125,7 +126,7 @@ export function MlRouteSummary({ meta, summary, coverage, lengthM, showState = t
       </div>
       {summary.band === 'no_coverage' ? (
         <p className="text-xs" style={{ color: '#5A6670' }}>
-          The model covers the Siliguri corridor, Sikkim and North Bengal. This route is outside it — rely on
+          The model covers the Siliguri corridor, Sikkim, North Bengal, Kamrup Metropolitan, Dima Hasao and Manipur only. This route is outside it — rely on
           incident reports and rule-based alerts here.
         </p>
       ) : (
@@ -189,7 +190,7 @@ export function MlTopAlertsPanel({ canPromote = false, compact = false }: { canP
       {data && data.state !== 'unavailable' && rows.length === 0 && (
         <div className="text-xs rounded-lg border px-3 py-2" style={{ color: '#5A6670', borderColor: 'rgba(180,162,136,0.55)' }}>
           No high-risk ML segments in {data.scope === 'region' ? 'the region' : data.scope}. The model covers the Siliguri
-          corridor, Sikkim and North Bengal only.
+          corridor, Sikkim, North Bengal, Kamrup Metropolitan, Dima Hasao and Manipur only.
         </div>
       )}
       {rows.length > 0 && (
